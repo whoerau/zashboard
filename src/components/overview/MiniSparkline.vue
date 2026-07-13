@@ -12,6 +12,7 @@
 </template>
 
 <script setup lang="ts">
+import { getHistoryTimeWindow } from '@/helper/historyWindow'
 import { isMiddleScreen } from '@/helper/utils'
 import { timeSaved, type HistoryPoint } from '@/store/overview'
 import { font, theme } from '@/store/settings'
@@ -75,6 +76,7 @@ const areaColor = computed(() => (props.color === 'info' ? colorSet.info30 : col
 const options = computed(() => {
   // 时间窗锚定最新数据点,保证最新点钉在右缘;缓冲点落在左缘外被 clip 裁掉
   const latest = props.data.at(-1)?.name ?? Date.now()
+  const timeWindow = getHistoryTimeWindow(latest, timeSaved)
 
   return {
     animationDurationUpdate: 1000,
@@ -99,8 +101,8 @@ const options = computed(() => {
     xAxis: {
       type: 'time' as const,
       show: false,
-      min: latest - (timeSaved - 1) * 1000,
-      max: latest - 1 * 1000,
+      min: timeWindow.min,
+      max: timeWindow.max,
     },
     yAxis: {
       type: 'value' as const,

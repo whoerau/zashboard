@@ -25,19 +25,6 @@
         <DashboardSettings icon-only />
       </SettingItem>
       <LanguageSelect />
-      <SettingItem
-        :setting-key="k.autoUpgradeDashboard"
-        :when="!isSingboxBackend"
-      >
-        <div class="setting-item-label">
-          {{ $t('autoUpgradeDashboard') }}
-        </div>
-        <input
-          class="toggle"
-          type="checkbox"
-          v-model="autoUpgradeDashboard"
-        />
-      </SettingItem>
       <SettingItem :setting-key="k.autoDisconnectIdleUDP">
         <div class="setting-item-label">
           {{ $t('autoDisconnectIdleUDP') }}
@@ -212,7 +199,6 @@ import { twMerge } from 'tailwind-merge'
 import {
   autoDisconnectIdleUDP,
   autoDisconnectIdleUDPTime,
-  autoUpgradeDashboard,
   disablePullToRefresh,
   displayAllFeatures,
   geoipASNDatabaseURL,
@@ -232,7 +218,6 @@ const isVisibleActions = useIsSettingVisible(k.actions)
 const isVisibleLanguage = useIsSettingVisible(k.language)
 const isVisibleShortcutsSetting = useIsSettingVisible(k.keyboardShortcuts)
 const isVisibleShortcuts = computed(() => isVisibleShortcutsSetting.value && !isMiddleScreen.value)
-const isVisibleAutoUpgrade = useIsSettingVisible(k.autoUpgradeDashboard)
 const isVisibleAutoDisconnectIdleUDP = useIsSettingVisible(k.autoDisconnectIdleUDP)
 const isVisibleAutoDisconnectIdleUDPTime = useIsSettingVisible(k.autoDisconnectIdleUDPTime)
 const isVisibleIPInfoAPI = useIsSettingVisible(k.IPInfoAPI)
@@ -265,7 +250,6 @@ const hasVisibleGeneralItems = computed(() => {
     isVisibleActions.value ||
     isVisibleLanguage.value ||
     isVisibleShortcuts.value ||
-    isVisibleAutoUpgrade.value ||
     isVisibleAutoDisconnectIdleUDP.value ||
     (autoDisconnectIdleUDP.value && isVisibleAutoDisconnectIdleUDPTime.value) ||
     isVisibleIPInfoAPI.value ||

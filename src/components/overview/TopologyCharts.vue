@@ -85,9 +85,12 @@
 </template>
 
 <script setup lang="ts">
+import { fetchRules, rules } from '@/assembly/rules'
 import { backgroundImage } from '@/helper/indexeddb'
 import { getConnectionChains, getConnectionRule, getConnectionSourceIP } from '@/helper'
+import { createLanDeviceResolver, getLanDeviceDisplayName } from '@/helper/lanDevice'
 import { getIPLabelFromMap } from '@/helper/sourceip'
+import { shouldRenderTopologySource } from '@/helper/topology'
 import { isMiddleScreen } from '@/helper/utils'
 import { activeConnections } from '@/store/connections'
 import { blurIntensity, dashboardTransparent, font, theme } from '@/store/settings'
@@ -139,6 +142,11 @@ const colorSet = {
 }
 
 let fontFamily = ''
+const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
+
+const getSourceIPDisplayName = (ip: string) => {
+  return getLanDeviceDisplayName(ip, resolveLanDevice.value, getIPLabelFromMap)
+}
 
 const updateColorSet = () => {
   const colorStyle = getComputedStyle(colorRef.value)
@@ -181,7 +189,10 @@ const sankeyData = computed(() => {
   }
 
   connections.forEach((conn) => {
-    const sourceIP = getIPLabelFromMap(getConnectionSourceIP(conn))
+    const rawSourceIP = getConnectionSourceIP(conn)
+    if (!shouldRenderTopologySource(rawSourceIP)) return
+
+    const sourceIP = getSourceIPDisplayName(rawSourceIP)
     const rulePayload = getConnectionRule(conn)
     const chains = getConnectionChains(conn)
 
@@ -363,6 +374,8 @@ const options = computed(() => ({
 }))
 
 onMounted(() => {
+  fetchRules().catch(() => {})
+
   updateColorSet()
   updateFontFamily()
 

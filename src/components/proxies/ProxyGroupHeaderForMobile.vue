@@ -4,7 +4,7 @@
       class="text-md truncate font-medium"
       :class="proxyGroup.icon && 'pr-10'"
     >
-      {{ proxyGroup.name }}
+      {{ displayName }}
     </div>
     <div
       class="text-base-content/40 flex min-w-0 items-center gap-2 truncate text-[11px]"
@@ -28,6 +28,7 @@
         />
         <ProxyGroupNow
           :name="proxyGroup.name"
+          :lan-device="lanDevice"
           :mobile="true"
         />
       </div>
@@ -57,6 +58,7 @@
 
 <script setup lang="ts">
 import { isHiddenGroup } from '@/helper'
+import { getLanDeviceFromScopedProxyName, getLanDeviceScopedProxyName } from '@/helper/lanDevice'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { prettyBytesHelper } from '@/helper/utils'
 import { getConnectionChains } from '@/helper'
@@ -82,6 +84,8 @@ const emit = defineEmits<{
 }>()
 
 const proxyGroup = computed(() => proxyMap.value[props.name])
+const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.name))
+const displayName = computed(() => getLanDeviceScopedProxyName(props.name, lanDevice.value))
 
 const downloadTotal = computed(() => {
   return activeConnections.value

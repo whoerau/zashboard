@@ -1,10 +1,12 @@
-import { IP_INFO_API, LANG } from '@/constant'
+import { GEOIP_ASN_DATABASE_URL, GEOIP_COUNTRY_DATABASE_URL, IP_INFO_API, LANG } from '@/constant'
+import { createGenerationGuard } from '@/helper/generationGuard'
+import { resolveGeoIPDatabaseURL } from '@/helper/geoipDatabase'
 import { geoipASNDatabaseURL, geoipCountryDatabaseURL, IPInfoAPI, language } from '@/store/settings'
 import { watchDebounced } from '@vueuse/core'
 import { Buffer } from 'buffer'
 import * as ipaddr from 'ipaddr.js'
 import type { AsnResponse, CountryResponse, Reader } from 'mmdb-lib'
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 
 // mmdb-lib relies on the global Buffer at module-eval time.
 if (!(globalThis as { Buffer?: unknown }).Buffer) {
@@ -317,7 +319,8 @@ const getReader = <T extends GeoIPResponse>(url: string): Promise<Reader<T>> => 
 
   const reader = loadReader(url).catch((error) => {
     // Drop the failed entry so a later lookup can retry the download.
-    readerCache.delete(url)
+    // 仅删除自己，避免旧请求清掉同 URL 的新 reader。Only remove this promise.
+    if (readerCache.get(url) === reader) readerCache.delete(url)
     throw error
   })
 
@@ -337,12 +340,15 @@ const getReader = <T extends GeoIPResponse>(url: string): Promise<Reader<T>> => 
   return reader as Promise<Reader<T>>
 }
 
-const localizedName = (names?: { en: string; 'zh-CN'?: string }): string => {
+const localizedName = (
+  preferredLanguage: LANG,
+  names?: { en: string; 'zh-CN'?: string },
+): string => {
   if (!names) {
     return ''
   }
 
-  const preferChinese = language.value === LANG.ZH_CN || language.value === LANG.ZH_TW
+  const preferChinese = preferredLanguage === LANG.ZH_CN || preferredLanguage === LANG.ZH_TW
 
   return preferChinese ? (names['zh-CN'] ?? names.en) : names.en
 }
@@ -359,17 +365,24 @@ const lookup = async <T extends GeoIPResponse>(url: string, ip: string): Promise
   }
 }
 
-const getGeoIPInfo = async (ip: string): Promise<IPInfo> => {
+const getGeoIPInfo = async (
+  ip: string,
+  countryDatabaseURL: string,
+  asnDatabaseURL: string,
+  preferredLanguage: LANG,
+): Promise<IPInfo> => {
   const [country, asn] = await Promise.all([
-    lookup<CountryResponse>(geoipCountryDatabaseURL.value, ip),
-    lookup<AsnResponse>(geoipASNDatabaseURL.value, ip),
+    lookup<CountryResponse>(countryDatabaseURL, ip),
+    lookup<AsnResponse>(asnDatabaseURL, ip),
   ])
 
   return {
     ip,
     // Real countries carry localized names; category ranges (e.g. GOOGLE) only
     // have an iso_code, so fall back to that.
-    country: localizedName(country?.country?.names) || (country?.country?.iso_code ?? ''),
+    country:
+      localizedName(preferredLanguage, country?.country?.names) ||
+      (country?.country?.iso_code ?? ''),
     region: '',
     city: '',
     asn: asn?.autonomous_system_number?.toString() ?? '',
@@ -389,7 +402,8 @@ const EMPTY_GEOIP_INFO: IPInfo = {
 // entry is tiny, so this only guards against unbounded growth.
 const GEOIP_INFO_CACHE_MAX = 4096
 const geoInfoCache = reactive(new Map<string, IPInfo>())
-const geoInfoPending = new Set<string>()
+const geoInfoPending = new Map<string, number>()
+const geoInfoGenerationGuard = createGenerationGuard()
 
 /**
  * Reactive, synchronous GeoIP lookup for render paths (e.g. table cells).
@@ -409,10 +423,25 @@ export const getGeoIPInfoSync = (ip: string): IPInfo => {
     return cached
   }
 
-  if (!geoInfoPending.has(ip)) {
-    geoInfoPending.add(ip)
-    getGeoIPInfo(ip)
+  const generation = geoInfoGenerationGuard.current()
+
+  if (geoInfoPending.get(ip) !== generation) {
+    const countryDatabaseURL = resolveGeoIPDatabaseURL(
+      geoipCountryDatabaseURL.value,
+      GEOIP_COUNTRY_DATABASE_URL,
+    )
+    const asnDatabaseURL = resolveGeoIPDatabaseURL(
+      geoipASNDatabaseURL.value,
+      GEOIP_ASN_DATABASE_URL,
+    )
+    const preferredLanguage = language.value
+
+    geoInfoPending.set(ip, generation)
+    getGeoIPInfo(ip, countryDatabaseURL, asnDatabaseURL, preferredLanguage)
       .then((info) => {
+        // 只提交当前配置代次。Only commit results for the current configuration.
+        if (!geoInfoGenerationGuard.isCurrent(generation)) return
+
         geoInfoCache.set(ip, info)
 
         // Evict oldest entries beyond the cap (FIFO; safe here since this runs
@@ -428,7 +457,9 @@ export const getGeoIPInfoSync = (ip: string): IPInfo => {
         }
       })
       .catch(() => {})
-      .finally(() => geoInfoPending.delete(ip))
+      .finally(() => {
+        if (geoInfoPending.get(ip) === generation) geoInfoPending.delete(ip)
+      })
   }
 
   return EMPTY_GEOIP_INFO
@@ -442,9 +473,16 @@ export const getGeoIPInfoSync = (ip: string): IPInfo => {
 watchDebounced(
   [geoipCountryDatabaseURL, geoipASNDatabaseURL],
   () => {
+    geoInfoGenerationGuard.next()
     readerCache.clear()
     geoInfoCache.clear()
     geoInfoPending.clear()
   },
   { debounce: 800 },
 )
+
+watch(language, () => {
+  geoInfoGenerationGuard.next()
+  geoInfoCache.clear()
+  geoInfoPending.clear()
+})

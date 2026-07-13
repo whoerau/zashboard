@@ -63,7 +63,7 @@
         </div>
         <div class="flex items-center gap-2">
           <input
-            v-if="rule.uuid || rule.extra"
+            v-if="!readOnly && (rule.uuid || rule.extra)"
             type="checkbox"
             class="toggle"
             :checked="!isDisabled"
@@ -138,6 +138,7 @@ import ProxyGroup from '../proxies/ProxyGroup.vue'
 const props = defineProps<{
   rule: Rule
   index: number
+  readOnly?: boolean
 }>()
 
 const expandedRule = inject<Ref<string | null>>('expandedRule', ref(null))

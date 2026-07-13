@@ -15,8 +15,13 @@
 </template>
 
 <script setup lang="ts">
-import { getIPLabelFromMap } from '@/helper/sourceip'
+import { fetchRules, rules } from '@/assembly/rules'
 import { getConnectionSourceIP } from '@/helper'
+import { createLanDeviceResolver } from '@/helper/lanDevice'
+import { buildSourceIPOptions } from '@/helper/sourceIPFilter'
+import { getIPLabelFromMap } from '@/helper/sourceip'
+import { sourceIPLabelList } from '@/store/settings'
+import { activeBackend } from '@/store/setup'
 import { connections, sourceIPFilter } from '@/store/connections'
 import * as ipaddr from 'ipaddr.js'
 import { isEqual, uniq } from 'lodash'
@@ -48,30 +53,29 @@ const sourceIPs = computed(() => {
   })
 })
 const sourceIPOpts = ref<{ label: string; value: string[] }[]>([])
+const manualSourceIPLabels = computed(() =>
+  sourceIPLabelList.value.map(({ key, label, scope }) => ({ key, label, scope })),
+)
+const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
 
 // do not use computed here for firefox
 watch(
-  sourceIPs,
-  (value, oldValue) => {
-    if (isEqual(value, oldValue)) return
-    const options: { label: string; value: string[] }[] = []
-
-    value.forEach((ip) => {
-      const label = getIPLabelFromMap(ip)
-      const index = options.findIndex((opt) => opt.label === label)
-
-      if (index === -1) {
-        options.push({
-          label,
-          value: [ip],
-        })
-      } else {
-        options[index].value.push(ip)
-      }
+  [sourceIPs, rules, manualSourceIPLabels, activeBackend],
+  ([value]) => {
+    const options = buildSourceIPOptions({
+      sourceIPs: value,
+      sourceIPLabels: manualSourceIPLabels.value,
+      activeBackendID: activeBackend.value?.uuid,
+      resolveLanDevice: resolveLanDevice.value,
+      resolveSourceIPLabel: getIPLabelFromMap,
     })
 
     if (sourceIPFilter.value !== null) {
-      const currentLabel = getIPLabelFromMap(sourceIPFilter.value[0])
+      const currentIP = sourceIPFilter.value[0]
+      const currentDevice = resolveLanDevice.value(currentIP)
+      const currentLabel = currentDevice
+        ? `${currentIP} (${currentDevice})`
+        : getIPLabelFromMap(currentIP)
       const current = options.find((opt) => opt.label === currentLabel)
 
       if (!current) {
@@ -90,4 +94,6 @@ watch(
     immediate: true,
   },
 )
+
+fetchRules().catch(() => {})
 </script>

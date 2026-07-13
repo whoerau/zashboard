@@ -2,6 +2,7 @@
   <div class="relative flex w-full items-center gap-2.5 overflow-hidden">
     <ProxyName
       :name="name"
+      :lan-device="lanDevice"
       :icon-size="proxyGroupIconSize"
       :icon-margin="proxyGroupIconMargin"
       class="text-base-content font-medium"
@@ -28,7 +29,10 @@
   </div>
   <div class="text-base-content/70 mt-2 flex items-center gap-2">
     <div class="flex flex-1 items-center gap-2 truncate text-sm">
-      <ProxyGroupNow :name="name" />
+      <ProxyGroupNow
+        :name="name"
+        :lan-device="lanDevice"
+      />
     </div>
     <div class="text-base-content/40 min-w-12 shrink-0 text-right text-xs tabular-nums">
       {{ prettyBytesHelper(downloadTotal) }}/s
@@ -38,6 +42,7 @@
 
 <script setup lang="ts">
 import { isHiddenGroup } from '@/helper'
+import { getLanDeviceFromScopedProxyName } from '@/helper/lanDevice'
 import { checkTruncation } from '@/helper/tooltip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { getConnectionChains } from '@/helper'
@@ -63,6 +68,7 @@ const emit = defineEmits<{
 }>()
 
 const proxyGroup = computed(() => proxyMap.value[props.name])
+const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.name))
 
 const downloadTotal = computed(() => {
   return activeConnections.value

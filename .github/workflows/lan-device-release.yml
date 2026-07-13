@@ -1,0 +1,56 @@
+name: Publish LAN Device Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/lan-device-filter
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    if: github.repository == 'whoerau/zashboard'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - name: Build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm run type-check
+          pnpm run build:no-fonts
+
+      - name: Zip dist
+        run: |
+          cd dist
+          zip -qr ../dist.zip .
+
+      - name: Publish rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: lan-device-filter-latest
+        run: |
+          git fetch origin "+refs/heads/$GITHUB_REF_NAME:refs/remotes/origin/$GITHUB_REF_NAME"
+          if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
+            echo "A newer branch commit exists; skipping this stale release."
+            exit 0
+          fi
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG" --force
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist.zip --clobber
+            gh release edit "$TAG" --title "lan-device-filter latest" --notes "Built from $GITHUB_SHA" --latest
+          else
+            gh release create "$TAG" dist.zip --title "lan-device-filter latest" --notes "Built from $GITHUB_SHA" --target "$GITHUB_SHA" --latest
+          fi

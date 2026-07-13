@@ -21,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+import { getHistoryTimeWindow } from '@/helper/historyWindow'
 import { isMiddleScreen } from '@/helper/utils'
 import { timeSaved, type HistoryPoint } from '@/store/overview'
 import { font, theme } from '@/store/settings'
@@ -77,6 +78,7 @@ const updateFontFamily = () => {
 const options = computed(() => {
   // 时间窗锚定最新数据点,保证最新点钉在右缘;缓冲点落在左缘外被 clip 裁掉
   const latest = props.data[0]?.data.at(-1)?.name ?? Date.now()
+  const timeWindow = getHistoryTimeWindow(latest, timeSaved)
 
   return {
     animationDurationUpdate: 1000,
@@ -113,8 +115,8 @@ const options = computed(() => {
     },
     xAxis: {
       type: 'time',
-      min: latest - (timeSaved - 1) * 1000,
-      max: latest - 1 * 1000,
+      min: timeWindow.min,
+      max: timeWindow.max,
       axisLine: { show: false },
       axisLabel: { show: false },
       splitLine: { show: false },

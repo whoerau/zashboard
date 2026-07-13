@@ -97,6 +97,7 @@ export type Rule = {
     missAt: string
     missCount: number
   }
+  readOnly?: boolean
 }
 
 export type RuleProvider = {

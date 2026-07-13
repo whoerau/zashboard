@@ -1,6 +1,8 @@
 import { configs } from '@/assembly/config'
 import {
   getProxyGroupChains,
+  proxiesDevice,
+  proxiesFilter,
   proxiesTabShow,
   proxyGroupList,
   proxyMap,
@@ -9,6 +11,7 @@ import {
 import { isSingBoxCore } from '@/assembly/version'
 import { GLOBAL, PROXY_TAB_TYPE } from '@/constant'
 import { isHiddenGroup } from '@/helper'
+import { isLanDeviceFilter } from '@/helper/lanDevice'
 import { groupsInActiveFolder, isProxyFolderModeActive } from '@/store/proxyFolders'
 import { customGlobalNode, displayGlobalByMode, manageHiddenGroup } from '@/store/settings'
 import { isEmpty } from 'lodash'
@@ -30,9 +33,11 @@ const filterProxyGroups = (groups: string[], respectHiddenGroups = true) => {
     return groups.filter((name) => !isHiddenGroup(name))
   }
 
-  const matchesGroup = isProxyNodeSearchMode.value
-    ? proxyGroupContainsMatchingNode
-    : (name: string) => matchProxySearchKeyword(name)
+  const matchesGroup = isLanDeviceFilter(proxiesFilter.value, proxiesDevice.value)
+    ? (name: string) => matchProxySearchKeyword(name)
+    : isProxyNodeSearchMode.value
+      ? proxyGroupContainsMatchingNode
+      : (name: string) => matchProxySearchKeyword(name)
 
   return groups.filter(matchesGroup)
 }
@@ -85,8 +90,10 @@ const limitInitialRender = (names: string[]) => {
 export const disableProxiesPageScroll = ref(false)
 export const isProxiesPageMounted = ref(false)
 
+export const filteredProxyGroups = computed(() => getRenderProxyGroups())
+
 export const renderProxyGroups = computed(() => {
-  return limitInitialRender(getRenderProxyGroups())
+  return limitInitialRender(filteredProxyGroups.value)
 })
 
 export const renderProxyProviders = computed(() => {

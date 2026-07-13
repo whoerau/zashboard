@@ -4,13 +4,15 @@
 import { isSingboxBackend } from '@/assembly/backend'
 import { isSingBoxCore } from '@/assembly/version'
 import { NOT_CONNECTED, PROXY_TAB_TYPE, PROXY_TYPE, TEST_URL } from '@/constant'
+import { getLanDeviceFilter, LAN_DEVICE_STORAGE_KEYS } from '@/helper/lanDevice'
 import { groupTestUrls, independentLatencyTest, speedtestUrl } from '@/store/settings'
 import type { Proxy, ProxyProvider } from '@/types'
 import { useStorage } from '@vueuse/core'
 import { last } from 'lodash'
 import { computed, ref } from 'vue'
 
-export const proxiesFilter = ref('')
+export const proxiesDevice = useStorage<string>(LAN_DEVICE_STORAGE_KEYS.proxies, '')
+export const proxiesFilter = ref(getLanDeviceFilter(proxiesDevice.value))
 export const proxiesTabShow = ref(PROXY_TAB_TYPE.PROXIES)
 
 export const proxyGroupList = ref<string[]>([])

@@ -5,7 +5,14 @@
 //(基于配置类型)语义不同:Clash 通道也可能连到 sing-box 兼容核心。
 import { fetchClashVersion, restartCoreAPI, upgradeCoreAPI, upgradeUIAPI } from '@/api/clash'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
-import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store/settings'
+import { createGenerationGuard } from '@/helper/generationGuard'
+import {
+  FORK_UI_RELEASE_API_URL,
+  type ForkUIRelease,
+  canAutoUpgradeForkUI,
+  isForkUIUpdateAvailable,
+} from '@/helper/uiUpdate'
+import { autoUpgradeCore, checkUpgradeCore } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
 import { computed, ref, watch } from 'vue'
 import { isSingboxBackend } from './backend'
@@ -41,20 +48,32 @@ export const mihomo = computed<[MIHOMO, string] | undefined>(() => {
   }
 })
 
-const fetchSingboxVersion = async () => {
-  const { getSingboxClient } = await import('@/api/singbox/client')
-  const client = getSingboxClient()?.client
-  if (!client) return { data: { version: 'sing-box' } }
-  const v = await client.getVersion({})
-  singboxApiVersion.value = v.apiVersion
-  const version = v.version.includes('sing-box') ? v.version : `sing-box ${v.version}`
-  return { data: { version } }
+interface RuntimeVersion {
+  version: string
+  apiVersion: number
 }
 
-export const fetchVersionAPI = () => {
-  if (isSingboxBackend.value) return fetchSingboxVersion()
-  singboxApiVersion.value = 0
-  return fetchClashVersion()
+const fetchSingboxVersion = async (): Promise<RuntimeVersion> => {
+  const { getSingboxClient } = await import('@/api/singbox/client')
+  const client = getSingboxClient()?.client
+  if (!client) return { version: 'sing-box', apiVersion: 0 }
+  const v = await client.getVersion({})
+  const version = v.version.includes('sing-box') ? v.version : `sing-box ${v.version}`
+  return { version, apiVersion: v.apiVersion }
+}
+
+const fetchRuntimeVersion = async (singboxBackend: boolean): Promise<RuntimeVersion> => {
+  if (singboxBackend) return fetchSingboxVersion()
+
+  const { data } = await fetchClashVersion()
+  return { version: data.version, apiVersion: 0 }
+}
+
+export const fetchVersionAPI = async () => {
+  const runtime = await fetchRuntimeVersion(isSingboxBackend.value)
+
+  singboxApiVersion.value = runtime.apiVersion
+  return { data: { version: runtime.version } }
 }
 
 const fetchSingboxStartedAt = async (): Promise<number> => {
@@ -69,21 +88,66 @@ const fetchSingboxStartedAt = async (): Promise<number> => {
   }
 }
 
+const versionRequestGuard = createGenerationGuard()
+
+const resetVersionState = () => {
+  version.value = ''
+  singboxApiVersion.value = 0
+  startedAt.value = 0
+  isCoreUpdateAvailable.value = false
+}
+
 watch(
   activeBackend,
   async (val) => {
-    if (val) {
-      const { data } = await fetchVersionAPI()
+    const generation = versionRequestGuard.next()
 
-      version.value = data?.version || ''
-      startedAt.value = isSingboxBackend.value ? await fetchSingboxStartedAt() : 0
-      if (isSingBoxCore.value || !checkUpgradeCore.value || activeBackend.value?.disableUpgradeCore)
+    if (!val) {
+      resetVersionState()
+      return
+    }
+
+    const backendUUID = val.uuid
+    const singboxBackend = val.type === 'singbox'
+    const isCurrentRequest = () =>
+      versionRequestGuard.isCurrent(generation) && activeBackend.value?.uuid === backendUUID
+
+    resetVersionState()
+
+    try {
+      const runtime = await fetchRuntimeVersion(singboxBackend)
+      if (!isCurrentRequest()) return
+
+      version.value = runtime.version
+      singboxApiVersion.value = runtime.apiVersion
+
+      const backendStartedAt = singboxBackend ? await fetchSingboxStartedAt() : 0
+      if (!isCurrentRequest()) return
+
+      startedAt.value = backendStartedAt
+      if (
+        runtime.version.includes('sing-box') ||
+        !checkUpgradeCore.value ||
+        val.disableUpgradeCore
+      ) {
+        isCoreUpdateAvailable.value = false
         return
-      isCoreUpdateAvailable.value = await fetchBackendUpdateAvailableAPI()
-
-      if (isCoreUpdateAvailable.value && autoUpgradeCore.value) {
-        upgradeCoreAPI('auto')
       }
+
+      const updateAvailable = await fetchBackendUpdateAvailableAPI()
+      if (!isCurrentRequest()) return
+
+      isCoreUpdateAvailable.value = updateAvailable
+      if (updateAvailable && autoUpgradeCore.value) {
+        // 升级前再次确认后端，绝不让旧请求升级新后端。
+        // Recheck before upgrade so a stale request never upgrades a new backend.
+        if (isCurrentRequest()) void upgradeCoreAPI('auto')
+      }
+    } catch (error) {
+      if (!isCurrentRequest()) return
+
+      resetVersionState()
+      console.warn('Failed to fetch backend version', error)
     }
   },
   { immediate: true },
@@ -133,12 +197,12 @@ async function fetchWithLocalCache<T>(url: string, version: string): Promise<T> 
 }
 
 export const fetchIsUIUpdateAvailable = async () => {
-  const { tag_name } = await fetchWithLocalCache<{ tag_name: string }>(
-    'https://api.github.com/repos/Zephyruso/zashboard/releases/latest',
-    zashboardVersion.value,
+  const release = await fetchWithLocalCache<ForkUIRelease>(
+    FORK_UI_RELEASE_API_URL,
+    `${zashboardVersion.value}/${__COMMIT_ID__ || 'no-commit'}`,
   )
 
-  return Boolean(tag_name && tag_name !== `v${zashboardVersion.value}`)
+  return isForkUIUpdateAvailable(release, __COMMIT_ID__, zashboardVersion.value)
 }
 
 const check = async (url: string, versionNumber: string) => {
@@ -160,7 +224,8 @@ export const isUIUpdateAvailable = ref(false)
 
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
-  if (isUIUpdateAvailable.value && autoUpgradeDashboard.value) {
+  // Mihomo /configs 不暴露 external-ui-url，无法安全证明下载源。Never auto-update unverified UI.
+  if (isUIUpdateAvailable.value && canAutoUpgradeForkUI()) {
     upgradeUIAPI()
   }
 }
