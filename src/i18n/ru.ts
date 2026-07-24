@@ -146,6 +146,26 @@ const ru: LANG_MESSAGE = {
   usbipConfigurations: 'Конфигурации',
   usbipInterfaceN: 'Интерфейс {n}',
 
+  // OpenVPN
+  openvpn: 'OpenVPN',
+  ovpnNoEndpoints: 'Нет конечных точек OpenVPN',
+  ovpnAuthentication: 'Аутентификация',
+  ovpnServer: 'Сервер',
+  ovpnNetwork: 'Сеть',
+  ovpnCipher: 'Шифр',
+  ovpnIPv4: 'IPv4',
+  ovpnIPv6: 'IPv6',
+  ovpnDNS: 'DNS',
+  ovpnMTU: 'MTU',
+  ovpnConnected: 'Подключено',
+  ovpnUsername: 'Имя пользователя',
+  ovpnPassword: 'Пароль',
+  ovpnResponse: 'Ответ',
+  ovpnOpenAuthURL: 'Открыть ссылку аутентификации',
+  ovpnSubmit: 'Отправить',
+  ovpnCancel: 'Отмена',
+  ovpnVerifying: 'Проверка',
+
   // Shared labels and actions
   protocol: 'Протокол',
   host: 'Хост',
@@ -425,6 +445,8 @@ const ru: LANG_MESSAGE = {
     'В бэкенде сохранены настройки, которые перезапишут следующие локальные настройки:\n\n{keys}\n\nПрименить их?',
   importSettingsConfirm:
     'Импортированные настройки перезапишут следующие локальные настройки:\n\n{keys}\n\nПрименить их?',
+  dontAskAgainAlwaysApply: 'Больше не спрашивать, применять автоматически',
+  confirmBeforeOverride: 'Подтверждать перезапись локальных настроек',
   deleteUploadedSettingsSuccess: 'Загруженные настройки успешно удалены',
   deleteUploadedSettingsConfirm:
     'Вы уверены, что хотите удалить загруженные на бэкенд настройки? Это действие нельзя отменить.',

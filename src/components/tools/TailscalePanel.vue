@@ -21,7 +21,7 @@
             class="rounded-full px-2 py-0.5 text-[0.65rem] font-medium tracking-normal"
             :class="statePill(endpoint.backendState)"
           >
-            {{ endpoint.backendState || $t('unknown') }}
+            {{ endpoint.stateText || endpoint.backendState || $t('unknown') }}
           </span>
         </span>
         <button

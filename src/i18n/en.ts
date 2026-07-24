@@ -144,6 +144,26 @@ const en = {
   usbipConfigurations: 'Configurations',
   usbipInterfaceN: 'Interface {n}',
 
+  // OpenVPN
+  openvpn: 'OpenVPN',
+  ovpnNoEndpoints: 'No OpenVPN endpoints',
+  ovpnAuthentication: 'Authentication',
+  ovpnServer: 'Server',
+  ovpnNetwork: 'Network',
+  ovpnCipher: 'Cipher',
+  ovpnIPv4: 'IPv4',
+  ovpnIPv6: 'IPv6',
+  ovpnDNS: 'DNS',
+  ovpnMTU: 'MTU',
+  ovpnConnected: 'Connected',
+  ovpnUsername: 'Username',
+  ovpnPassword: 'Password',
+  ovpnResponse: 'Response',
+  ovpnOpenAuthURL: 'Open auth URL',
+  ovpnSubmit: 'Submit',
+  ovpnCancel: 'Cancel',
+  ovpnVerifying: 'Verifying',
+
   // Shared labels and actions
   protocol: 'Protocol',
   host: 'Host',
@@ -423,6 +443,8 @@ const en = {
     'The backend has stored settings that will override the following local settings:\n\n{keys}\n\nDo you want to apply them?',
   importSettingsConfirm:
     'The imported settings will override the following local settings:\n\n{keys}\n\nDo you want to apply them?',
+  dontAskAgainAlwaysApply: "Don't ask again, always apply",
+  confirmBeforeOverride: 'Confirm before overriding local settings',
   deleteUploadedSettingsSuccess: 'Uploaded settings deleted successfully',
   deleteUploadedSettingsConfirm:
     'Are you sure you want to delete the uploaded settings on the backend? This action cannot be undone.',

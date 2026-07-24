@@ -16,6 +16,7 @@
       <KeepAlive>
         <NetworkToolsPanel v-if="activeTab === TOOLS_TAB_TYPE.network" />
         <UsbipPanel v-else-if="activeTab === TOOLS_TAB_TYPE.usbip" />
+        <OpenVPNPanel v-else-if="activeTab === TOOLS_TAB_TYPE.openvpn" />
         <TailscalePanel
           v-else
           @ssh="openSSH"
@@ -43,42 +44,58 @@ import { singboxApiVersion } from '@/assembly/version'
 import CtrlsBar from '@/components/common/CtrlsBar.vue'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
 import NetworkToolsPanel from '@/components/tools/NetworkToolsPanel.vue'
+import OpenVPNPanel from '@/components/tools/OpenVPNPanel.vue'
 import TailscalePanel from '@/components/tools/TailscalePanel.vue'
 import TerminalPanel from '@/components/tools/TerminalPanel.vue'
 import UsbipPanel from '@/components/tools/UsbipPanel.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import type { SSHSessionOptions } from '@/composables/tailscaleSSH'
-import { CpuChipIcon, ShareIcon, WrenchScrewdriverIcon } from '@heroicons/vue/24/outline'
+import {
+  CpuChipIcon,
+  ShareIcon,
+  ShieldCheckIcon,
+  WrenchScrewdriverIcon,
+} from '@heroicons/vue/24/outline'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 enum TOOLS_TAB_TYPE {
   network = 'tools',
   usbip = 'usbip',
+  openvpn = 'openvpn',
   tailscale = 'tailscale',
 }
 
 // usbip requires the sing-box gRPC API version 2 (ProvideUSBDevices stream).
 const USBIP_MIN_API_VERSION = 2
+// OpenVPN requires the sing-box gRPC API version 3 (SubscribeOpenVPNStatus stream).
+const OPENVPN_MIN_API_VERSION = 3
 
 const { t } = useI18n()
 
 const activeTab = ref<string>(TOOLS_TAB_TYPE.network)
 
 const usbipSupported = computed(() => singboxApiVersion.value >= USBIP_MIN_API_VERSION)
+const openvpnSupported = computed(() => singboxApiVersion.value >= OPENVPN_MIN_API_VERSION)
 
 const tabOptions = computed<SegmentOption[]>(() => [
   { value: TOOLS_TAB_TYPE.network, label: t(TOOLS_TAB_TYPE.network), icon: WrenchScrewdriverIcon },
+  { value: TOOLS_TAB_TYPE.tailscale, label: t(TOOLS_TAB_TYPE.tailscale), icon: ShareIcon },
+  ...(openvpnSupported.value
+    ? [{ value: TOOLS_TAB_TYPE.openvpn, label: t(TOOLS_TAB_TYPE.openvpn), icon: ShieldCheckIcon }]
+    : []),
   ...(usbipSupported.value
     ? [{ value: TOOLS_TAB_TYPE.usbip, label: t(TOOLS_TAB_TYPE.usbip), icon: CpuChipIcon }]
     : []),
-  { value: TOOLS_TAB_TYPE.tailscale, label: t(TOOLS_TAB_TYPE.tailscale), icon: ShareIcon },
 ])
 
-// If the active tab disappears (e.g. usbip support dropped after a backend
+// If the active tab disappears (e.g. capability dropped after a backend
 // switch), fall back to the network tab.
-watch(usbipSupported, (supported) => {
-  if (!supported && activeTab.value === TOOLS_TAB_TYPE.usbip) {
+watch([usbipSupported, openvpnSupported], () => {
+  if (!usbipSupported.value && activeTab.value === TOOLS_TAB_TYPE.usbip) {
+    activeTab.value = TOOLS_TAB_TYPE.network
+  }
+  if (!openvpnSupported.value && activeTab.value === TOOLS_TAB_TYPE.openvpn) {
     activeTab.value = TOOLS_TAB_TYPE.network
   }
 })

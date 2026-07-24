@@ -12,19 +12,11 @@
 </template>
 
 <script setup lang="ts">
+import { useChartColors, useEChartsInstance } from '@/composables/useECharts'
 import { getHistoryTimeWindow } from '@/helper/historyWindow'
-import { isMiddleScreen } from '@/helper/utils'
 import { timeSaved, type HistoryPoint } from '@/store/overview'
-import { font, theme } from '@/store/settings'
-import { useElementSize } from '@vueuse/core'
-import { LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { debounce } from 'lodash'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-
-echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
+import { computed, ref } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -41,34 +33,7 @@ const props = withDefaults(
 const chartRef = ref()
 const colorRef = ref()
 
-const colorSet = {
-  primary30: '',
-  primary60: '',
-  info30: '',
-  info60: '',
-  baseContent40: '',
-  baseContent: '',
-  base70: '',
-}
-
-let fontFamily = ''
-
-const updateColorSet = () => {
-  if (!colorRef.value) return
-  const s = getComputedStyle(colorRef.value)
-  colorSet.baseContent = s.getPropertyValue('--color-base-content').trim()
-  colorSet.base70 = s.backgroundColor
-  colorSet.baseContent40 = s.color
-  colorSet.primary30 = s.borderBottomColor
-  colorSet.primary60 = s.borderTopColor
-  colorSet.info30 = s.borderLeftColor
-  colorSet.info60 = s.borderRightColor
-}
-
-const updateFontFamily = () => {
-  if (!colorRef.value) return
-  fontFamily = getComputedStyle(colorRef.value).fontFamily
-}
+const { colorSet, fontFamily } = useChartColors(colorRef)
 
 const seriesColor = computed(() => (props.color === 'info' ? colorSet.info60 : colorSet.primary60))
 const areaColor = computed(() => (props.color === 'info' ? colorSet.info30 : colorSet.primary30))
@@ -92,7 +57,7 @@ const options = computed(() => {
           padding: [0, 5],
           textStyle: {
             color: colorSet.baseContent,
-            fontFamily,
+            fontFamily: fontFamily.value,
             fontSize: 11,
           },
           formatter: props.tooltipFormatter,
@@ -119,8 +84,8 @@ const options = computed(() => {
             show: true,
             inside: false,
             fontSize: 9,
-            color: colorSet.baseContent40,
-            fontFamily,
+            color: colorSet.contentDim,
+            fontFamily: fontFamily.value,
             margin: 4,
             formatter: (value: number) => (value === 0 ? '' : props.labelFormatter!(value)),
           }
@@ -147,41 +112,5 @@ const options = computed(() => {
   }
 })
 
-let myChart: echarts.ECharts | null = null
-let touchEndHandler: ((e: TouchEvent) => void) | null = null
-
-onMounted(() => {
-  updateColorSet()
-  updateFontFamily()
-  watch(theme, updateColorSet)
-  watch(font, updateFontFamily)
-
-  myChart = echarts.init(chartRef.value)
-  myChart.setOption(options.value)
-
-  watch(options, () => {
-    myChart?.setOption(options.value)
-  })
-
-  const { width } = useElementSize(chartRef)
-  const resize = debounce(() => myChart?.resize(), 100)
-  watch(width, resize)
-
-  if (isMiddleScreen.value && chartRef.value) {
-    touchEndHandler = () => {
-      myChart?.dispatchAction({ type: 'hideTip' })
-    }
-    chartRef.value.addEventListener('touchend', touchEndHandler)
-  }
-})
-
-onUnmounted(() => {
-  if (chartRef.value && touchEndHandler) {
-    chartRef.value.removeEventListener('touchend', touchEndHandler)
-  }
-  if (myChart) {
-    myChart.dispose()
-    myChart = null
-  }
-})
+useEChartsInstance(chartRef, options)
 </script>
