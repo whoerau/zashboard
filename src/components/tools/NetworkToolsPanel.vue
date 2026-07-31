@@ -168,12 +168,12 @@
               </span>
             </div>
           </div>
-          <BasicCharts
+          <TimeSeriesChart
             :data="nqChartData"
             :label-formatter="formatBitrate"
-            :tool-tip-formatter="nqTooltipFormatter"
+            :tooltip-formatter="nqTooltipFormatter"
             x-axis-mode="seconds"
-            :window-sec="nqWindowSec"
+            :window-seconds="nqWindowSec"
             :show-pause-button="false"
           />
         </div>
@@ -300,11 +300,13 @@
 
 <script setup lang="ts">
 import { getSingboxClient } from '@/assembly/tools'
+import TimeSeriesChart from '@/components/charts/TimeSeriesChart.vue'
+import { chartTooltipRow } from '@/components/charts/chartTooltip'
+import { getChartPointValue, type ChartTooltipParam } from '@/components/charts/chartTypes'
 import type { NetworkQualityTestProgress, STUNTestProgress } from '@/gen/daemon/started_service_pb'
 import { proxyMap } from '@/assembly/proxies'
 import { computed, defineComponent, h, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import BasicCharts from '@/components/overview/BasicCharts.vue'
 
 const NETWORK_QUALITY_DEFAULT_URL = 'https://mensura.cdn-apple.com/api/v1/gm/config'
 const STUN_DEFAULT_SERVER = 'stun.voipgate.com:3478'
@@ -409,19 +411,18 @@ const nqChartData = computed(() => [
   { name: t('download'), data: nqDownloadHistory.value },
 ])
 
-const nqTooltipFormatter = (params: ToolTipParams[]) => {
+const nqTooltipFormatter = (params: ChartTooltipParam[]) => {
   // 每个序列只展示一条,防止同一 x 上的多个点在 tooltip 中重复
   const seen = new Set<string>()
   return params
     .filter((item) => !seen.has(item.seriesName) && seen.add(item.seriesName))
     .map((item) => {
-      const [sec, bps] = item.data as unknown as [number, number]
-      return `
-    <div class="flex items-center my-2 gap-1">
-      <div class="w-4 h-4 rounded-full" style="background-color: ${item.color}"></div>
-      ${item.seriesName}
-      (${sec.toFixed(1)} s): ${formatBitrate(bps)}
-    </div>`
+      const [seconds, bitrate] = getChartPointValue(item.data)
+      return chartTooltipRow({
+        color: item.color,
+        label: item.seriesName,
+        detail: `(${seconds.toFixed(1)} s): ${formatBitrate(bitrate)}`,
+      })
     })
     .join('\n')
 }
