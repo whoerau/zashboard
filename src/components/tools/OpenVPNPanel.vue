@@ -1,12 +1,5 @@
 <template>
   <div class="mx-auto flex max-w-2xl flex-col p-2 sm:p-4">
-    <div
-      v-if="endpoints.length === 0"
-      class="text-base-content/50 p-12 text-center text-sm"
-    >
-      {{ $t('ovpnNoEndpoints') }}
-    </div>
-
     <template
       v-for="endpoint in endpoints"
       :key="endpoint.endpointTag"
@@ -18,7 +11,7 @@
             {{ endpoint.endpointTag || 'OpenVPN' }}
           </span>
           <span
-            class="rounded-full px-2 py-0.5 text-[0.65rem] font-medium tracking-normal"
+            class="rounded-full px-2 py-0.5 text-[0.65rem] tracking-normal"
             :class="statePill(endpoint.state)"
           >
             {{ endpoint.stateText || endpoint.state || $t('unknown') }}
@@ -122,25 +115,23 @@
 </template>
 
 <script setup lang="ts">
-import { getSingboxClient, runStream, serverStream, type StreamHandle } from '@/assembly/tools'
+import { getSingboxClient } from '@/assembly/tools'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import OpenVPNAuthForm from '@/components/tools/OpenVPNAuthForm.vue'
 import QRCodeView from '@/components/tools/QRCodeView.vue'
 import {
-  StartedService,
   type OpenVPNChallenge,
   type OpenVPNEndpointStatus,
   type OpenVPNTunnelInfo,
 } from '@/gen/daemon/started_service_pb'
 import { fromNow } from '@/helper/utils'
 import { QrCodeIcon } from '@heroicons/vue/24/outline'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
+defineProps<{ endpoints: OpenVPNEndpointStatus[] }>()
 
-const endpoints = ref<OpenVPNEndpointStatus[]>([])
-let statusHandle: StreamHandle | null = null
+const { t } = useI18n()
 
 const statePill = (state: string): string => {
   switch (state) {
@@ -199,14 +190,4 @@ const openQR = (url: string) => {
   qrUrl.value = url
   qrOpen.value = true
 }
-
-onMounted(() => {
-  if (!getSingboxClient()) return
-  statusHandle = runStream(
-    (signal) => serverStream(StartedService.method.subscribeOpenVPNStatus, {}, signal),
-    (msg) => (endpoints.value = msg.endpoints),
-  )
-})
-
-onBeforeUnmount(() => statusHandle?.close())
 </script>

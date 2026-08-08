@@ -12,7 +12,7 @@
         {{ seqWithPadding }}
       </span>
       <span
-        class="text-[11px] font-medium tracking-wide uppercase"
+        class="text-[11px] tracking-wide uppercase"
         :class="colorMapForType[log.type as keyof typeof colorMapForType]"
       >
         <HighlightText
@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { isSingBoxCore } from '@/assembly/version'
+import { can } from '@/assembly/backend'
 import HighlightText from '@/components/common/HighlightText.vue'
 import { useBounceOnVisible } from '@/composables/bouncein'
 import { LOG_LEVEL } from '@/constant'
@@ -57,7 +57,7 @@ const emits = defineEmits<{
 }>()
 
 const connectionID = computed(() => {
-  if (!isSingBoxCore.value || props.connectionDetailDisabled) return null
+  if (!can('logConnectionDetail') || props.connectionDetailDisabled) return null
 
   return getLogConnectionID(props.log.payload)
 })

@@ -1,3 +1,4 @@
+import { can } from '@/assembly/backend'
 import { configs, updateConfigs } from '@/assembly/config'
 import { disconnectByIdAPI } from '@/assembly/connections'
 import {
@@ -11,7 +12,6 @@ import {
   proxyProviederList,
   updateProxyProviderAPI,
 } from '@/assembly/proxies'
-import { isSingBoxCore } from '@/assembly/version'
 import { renderProxiesPageItems } from '@/composables/proxies'
 import { isProxyNodeSearchMode, toggleProxySearchMode } from '@/composables/proxySearch'
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
@@ -132,7 +132,7 @@ export default defineComponent({
     const handlerModeChange = (e: Event) => {
       const mode = (e.target as HTMLSelectElement).value
       updateConfigs({ mode })
-      if (isSingBoxCore.value && automaticDisconnection.value) {
+      if (can('disconnectOnModeChange') && automaticDisconnection.value) {
         activeConnections.value.forEach((connection) => {
           if (connection.rule.includes('clash_mode')) {
             disconnectByIdAPI(connection.id)
@@ -286,7 +286,7 @@ export default defineComponent({
             v-model={proxiesFilter.value}
             placeholder={searchPlaceholder}
             clearable={true}
-            inputClass="pl-7"
+            class="w-full pl-7"
           />
         </div>
       )

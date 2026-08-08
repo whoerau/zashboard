@@ -1,0 +1,9 @@
+minimumReleaseAge: 10080
+
+allowBuilds:
+  '@bufbuild/buf': true
+  esbuild: true
+
+overrides:
+  esbuild: 0.28.1
+  serialize-javascript: 7.0.7

@@ -35,7 +35,7 @@ export const getIPFromIpipnetAPI = async () => {
 }
 
 // global
-const getIPFromIpsbAPI = async (ip = '') => {
+export const getIPFromIpsbAPI = async (ip = '') => {
   const response = await fetch(
     'https://api.ip.sb/geoip' + (ip ? `/${ip}` : '') + '?t=' + Date.now(),
   )

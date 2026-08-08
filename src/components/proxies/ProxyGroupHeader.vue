@@ -5,10 +5,10 @@
       :lan-device="lanDevice"
       :icon-size="proxyGroupIconSize"
       :icon-margin="proxyGroupIconMargin"
-      class="text-base-content font-medium"
+      class="text-base-content"
     />
     <span
-      class="text-base-content/40 min-w-0 flex-1 truncate text-[11px] font-medium tracking-wider uppercase tabular-nums"
+      class="text-base-content/40 min-w-0 flex-1 truncate text-[11px] tracking-wider uppercase tabular-nums"
       @mouseenter="checkTruncation"
     >
       {{ proxyGroup.type }} · {{ proxiesCount }}
@@ -17,6 +17,7 @@
     <VisibilityToggle
       v-if="manageHiddenGroup"
       :hidden="hiddenGroup"
+      @mouseenter="showVisibilityTip"
       @toggle="handlerGroupToggle"
     />
     <LatencyTag
@@ -41,9 +42,10 @@
 </template>
 
 <script setup lang="ts">
+import { KEYBOARD_SHORTCUT_ACTION, useKeyboardShortcuts } from '@/composables/keyboard'
 import { isHiddenGroup } from '@/helper'
 import { getLanDeviceFromScopedProxyName } from '@/helper/lanDevice'
-import { checkTruncation } from '@/helper/tooltip'
+import { checkTruncation, useTooltip } from '@/helper/tooltip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { getConnectionChains } from '@/helper'
 import { activeConnections } from '@/store/connections'
@@ -51,6 +53,7 @@ import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { manageHiddenGroup, proxyGroupIconMargin, proxyGroupIconSize } from '@/store/settings'
 import { twMerge } from 'tailwind-merge'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import VisibilityToggle from '../common/VisibilityToggle.vue'
 import LatencyTag from './LatencyTag.vue'
 import ProxyGroupFilter from './ProxyGroupFilter.vue'
@@ -67,6 +70,9 @@ const emit = defineEmits<{
   'latency-test': []
 }>()
 
+const { t } = useI18n()
+const { getShortcutKey } = useKeyboardShortcuts()
+const { showTip } = useTooltip()
 const proxyGroup = computed(() => proxyMap.value[props.name])
 const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.name))
 
@@ -82,6 +88,21 @@ const hiddenGroup = computed({
     hiddenGroupMap.value[props.name] = value
   },
 })
+
+const visibilityToggleTip = computed(() => {
+  const title = t(hiddenGroup.value ? 'showProxyGroup' : 'hideProxyGroup')
+  const shortcut = getShortcutKey(KEYBOARD_SHORTCUT_ACTION.TOGGLE_MANAGE_HIDDEN_GROUP)
+
+  return shortcut ? `${title}\n${t('manageHiddenGroupShortcutTip', { shortcut })}` : title
+})
+
+const showVisibilityTip = (e: Event) => {
+  showTip(e, visibilityToggleTip.value, {
+    delay: [500, 0],
+    trigger: 'mouseenter',
+    touch: ['hold', 500],
+  })
+}
 
 const handlerGroupToggle = () => {
   hiddenGroup.value = !hiddenGroup.value

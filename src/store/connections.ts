@@ -145,10 +145,22 @@ const sortKeyFunctionMap: Record<SORT_TYPE, (connection: Connection) => string |
 }
 
 export const connections = computed(() => {
-  return connectionTabShow.value === CONNECTION_TAB_TYPE.ACTIVE
-    ? activeConnections.value
-    : closedConnections.value
+  switch (connectionTabShow.value) {
+    case CONNECTION_TAB_TYPE.ACTIVE:
+      return activeConnections.value
+    case CONNECTION_TAB_TYPE.CLOSED:
+      return closedConnections.value
+    // 全部:两个数组天然不相交(closed 是「上一拍存在、这一拍消失」的连接),无需去重。
+    default:
+      return closedConnections.value.concat(activeConnections.value)
+  }
 })
+
+const closedConnectionIds = computed(() => new Set(closedConnections.value.map((conn) => conn.id)))
+
+// 「已关闭」与「全部」两个 tab 下都用它判定单条连接是否已断,以决定关闭按钮与淡化样式。
+export const isClosedConnection = (connection: Connection) =>
+  closedConnectionIds.value.has(connection.id)
 
 export const renderConnections = computed(() => {
   const searchRegex = toSearchRegex(connectionFilter.value)

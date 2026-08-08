@@ -186,6 +186,10 @@ const defaultOverviewCardOrder: { card: OVERVIEW_CARD; visible: boolean }[] = [
     visible: true,
   },
   {
+    card: OVERVIEW_CARD.EarthGlobeCard,
+    visible: true,
+  },
+  {
     card: OVERVIEW_CARD.TopologyCharts,
     visible: true,
   },
@@ -208,18 +212,34 @@ export const overviewCardOrder = useStorage<{ card: OVERVIEW_CARD; visible: bool
   defaultOverviewCardOrder,
 )
 
-// 确保所有卡片都在配置中，缺失的卡片添加到末尾
+// 确保所有卡片都在配置中。存量配置首次补入全球连接时放在连接拓扑前；
+// 其他缺失卡片仍追加到末尾，已有全球连接的自定义顺序不改。
 const allCardTypes = Object.values(OVERVIEW_CARD)
 const existingCardTypes = new Set(overviewCardOrder.value.map((item) => item.card))
 const missingCards = allCardTypes.filter((card) => !existingCardTypes.has(card))
 
 if (missingCards.length > 0) {
-  const newCards = missingCards.map((card) => ({
-    card,
-    visible: true,
-  }))
-  overviewCardOrder.value = [...overviewCardOrder.value, ...newCards]
+  const nextOrder = [...overviewCardOrder.value]
+
+  for (const card of missingCards) {
+    const item = { card, visible: true }
+
+    if (card === OVERVIEW_CARD.EarthGlobeCard) {
+      const topologyIndex = nextOrder.findIndex(({ card }) => card === OVERVIEW_CARD.TopologyCharts)
+      nextOrder.splice(topologyIndex === -1 ? nextOrder.length : topologyIndex, 0, item)
+    } else {
+      nextOrder.push(item)
+    }
+  }
+
+  overviewCardOrder.value = nextOrder
 }
+
+export const earthOriginSource = useStorage<'global' | 'china'>(
+  'config/earth-origin-source',
+  'china',
+)
+export const earthVisualMode = useStorage<'flat' | 'space'>('config/earth-visual-mode', 'flat')
 
 // proxies
 export const collapseGroupMap = useStorage<Record<string, boolean>>('cache/collapse-group-map', {})

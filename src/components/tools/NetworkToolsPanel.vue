@@ -138,7 +138,7 @@
             <div class="flex flex-col gap-0.5 text-sm">
               <div class="text-base-content/60 text-xs">{{ $t('downloadRPM') }}</div>
               <ResultValue
-                class="font-medium tabular-nums"
+                class="tabular-nums"
                 :pending="nqRunning && !nqFinished && nqProgress.phase === 1"
                 :value="nqProgress.downloadRPM > 0 ? String(nqProgress.downloadRPM) : '-'"
               >
@@ -151,7 +151,7 @@
             <div class="flex flex-col gap-0.5 text-sm">
               <div class="text-base-content/60 text-xs">{{ $t('uploadRPM') }}</div>
               <ResultValue
-                class="font-medium tabular-nums"
+                class="tabular-nums"
                 :pending="nqRunning && !nqFinished && nqProgress.phase === 2"
                 :value="nqProgress.uploadRPM > 0 ? String(nqProgress.uploadRPM) : '-'"
               >
@@ -163,7 +163,7 @@
             </div>
             <div class="flex flex-col gap-0.5 text-sm">
               <div class="text-base-content/60 text-xs">{{ $t('elapsed') }}</div>
-              <span class="font-medium tabular-nums">
+              <span class="tabular-nums">
                 {{ `${(Number(nqProgress.elapsedMs) / 1000).toFixed(1)} s` }}
               </span>
             </div>
@@ -321,7 +321,7 @@ const DataLine = defineComponent({
     () =>
       h('div', { class: 'setting-item' }, [
         h('div', { class: 'setting-item-label' }, props.label),
-        h('span', { class: 'text-right font-medium break-all' }, slots.default?.()),
+        h('span', { class: 'text-right  break-all' }, slots.default?.()),
       ]),
 })
 
