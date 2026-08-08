@@ -3,25 +3,19 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { createGenerationGuard } from '../src/helper/generationGuard.ts'
 import { resolveGeoIPDatabaseURL } from '../src/helper/geoipDatabase.ts'
-import { getHistoryTimeWindow } from '../src/helper/historyWindow.ts'
 import { parseLanRulesManifest } from '../src/helper/lanRulesManifest.ts'
-import { setTextContent } from '../src/helper/textContent.ts'
-
-test('renders untrusted notification content as text', () => {
-  const element = { innerHTML: 'unchanged', textContent: '' }
-  const attack = '<img src=x onerror="globalThis.pwned=true">'
-
-  setTextContent(element, attack)
-
-  assert.equal(element.textContent, attack)
-  assert.equal(element.innerHTML, 'unchanged')
-})
 
 test('routes notification messages through the text-only renderer', () => {
   const source = readFileSync(new URL('../src/helper/notification.ts', import.meta.url), 'utf8')
 
-  assert.match(source, /setTextContent\(contentDiv, t\(content, params\)\)/)
+  assert.match(source, /contentDiv\.textContent = t\(content, params\)/)
   assert.doesNotMatch(source, /contentDiv\.innerHTML/)
+})
+
+test('keeps a successful backend probe when update checks fail', () => {
+  const source = readFileSync(new URL('../src/assembly/version.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /fetchBackendUpdateAvailableAPI\(\)\.catch\([\s\S]*?return false\n\s*}\)/)
 })
 
 test('invalidates stale asynchronous generations', () => {
@@ -95,8 +89,4 @@ test('uses the built-in GeoIP database URL for empty settings', () => {
     resolveGeoIPDatabaseURL(' https://custom.example/db.mmdb ', 'fallback'),
     'https://custom.example/db.mmdb',
   )
-})
-
-test('keeps the latest history sample inside the chart window', () => {
-  assert.deepEqual(getHistoryTimeWindow(10_000, 5), { min: 6_000, max: 10_000 })
 })

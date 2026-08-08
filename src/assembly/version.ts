@@ -139,7 +139,12 @@ const probeBackend = async (backend: Backend, generation: number) => {
     startedAt.value = backendStartedAt
     if (!can('coreUpdateCheck') || !checkUpgradeCore.value || backend.disableUpgradeCore) return
 
-    const updateAvailable = await fetchBackendUpdateAvailableAPI()
+    const updateAvailable = await fetchBackendUpdateAvailableAPI().catch((error) => {
+      // Update-check failures must not discard a successful backend probe.
+      // 更新检查失败不得抹掉已成功探测的后端状态。
+      if (isCurrentRequest()) console.warn('Failed to check backend update', error)
+      return false
+    })
     if (!isCurrentRequest()) return
 
     isCoreUpdateAvailable.value = updateAvailable

@@ -1,6 +1,5 @@
 import { i18n } from '@/i18n'
 import { type Ref } from 'vue'
-import { setTextContent } from './textContent'
 
 const t = i18n.global.t
 const alertMap = new Map<
@@ -99,7 +98,7 @@ const setAlert = (
 
   const contentDiv = document.createElement('div')
   contentDiv.className = 'break-all whitespace-pre-wrap'
-  setTextContent(contentDiv, t(content, params))
+  contentDiv.textContent = t(content, params)
 
   const closeButton = document.createElement('button')
   closeButton.className = 'absolute top-0 right-0 btn btn-xs btn-circle btn-ghost'

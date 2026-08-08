@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { fetchRules, rules } from '@/assembly/rules'
+import { rules } from '@/assembly/rules'
 import { escapeChartHtml } from '@/components/charts/chartTooltip'
 import { useChartTheme, useEChart, type EChartOption } from '@/composables/useEChart'
 import { getConnectionChains, getConnectionRule, getConnectionSourceIP } from '@/helper'
@@ -132,9 +132,6 @@ const chartSurfaceStyle = computed<CSSProperties>(() => {
 })
 
 const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
-
-fetchRules().catch(() => {})
-
 const topologyData = computed(() =>
   buildTopologyData(
     activeConnections.value.flatMap((connection) => {

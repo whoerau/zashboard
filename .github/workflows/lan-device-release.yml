@@ -1,7 +1,6 @@
 name: Publish LAN Device Release
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - feat/lan-device-filter

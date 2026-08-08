@@ -35,6 +35,7 @@ test('cancels stale rolling releases and verifies the branch head before publish
     /concurrency:\s*\n\s+group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}/,
   )
   assert.match(workflow, /cancel-in-progress: true/)
+  assert.doesNotMatch(workflow, /workflow_dispatch/)
 
   const verifyIndex = workflow.indexOf('origin/$GITHUB_REF_NAME')
   const tagIndex = workflow.indexOf('git tag -f')

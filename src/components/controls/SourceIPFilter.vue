@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { fetchRules, rules } from '@/assembly/rules'
+import { rules } from '@/assembly/rules'
 import { getConnectionSourceIP } from '@/helper'
 import { createLanDeviceResolver } from '@/helper/lanDevice'
 import { buildSourceIPOptions } from '@/helper/sourceIPFilter'
@@ -94,6 +94,4 @@ watch(
     immediate: true,
   },
 )
-
-fetchRules().catch(() => {})
 </script>
