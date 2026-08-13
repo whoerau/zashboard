@@ -4,20 +4,6 @@
       {{ $t('general') }}
     </div>
     <div class="settings-grid">
-      <SettingItem
-        :setting-key="k.actions"
-        :when="can('dashboardUpgrade')"
-      >
-        <div class="setting-item-label">
-          {{ $t('upgradeDashboard') }}
-        </div>
-        <button
-          :class="twMerge('btn btn-sm', isUIUpgrading ? 'animate-pulse' : '')"
-          @click="handlerClickUpgradeUI"
-        >
-          <ArrowUpCircleIcon class="h-4 w-4" />
-        </button>
-      </SettingItem>
       <SettingItem :setting-key="k.actions">
         <div class="setting-item-label">
           {{ $t('dashboardSettings') }}
@@ -182,8 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { can, showDisplayAllFeatures } from '@/assembly/backend'
-import { upgradeUIAPI } from '@/assembly/version'
+import { showDisplayAllFeatures } from '@/assembly/backend'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
 import KeyboardShortcutsSettings from '@/components/settings/general/KeyboardShortcutsSettings.vue'
 import LanguageSelect from '@/components/settings/general/LanguageSelect.vue'
@@ -192,10 +177,8 @@ import TextInput from '@/components/common/TextInput.vue'
 import { useIsSettingVisible } from '@/composables/settings'
 import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
 import { IP_INFO_API } from '@/constant'
-import { handlerUpgradeSuccess } from '@/helper'
 import { useTooltip } from '@/helper/tooltip'
 import { isMiddleScreen } from '@/helper/utils'
-import { twMerge } from 'tailwind-merge'
 import {
   autoDisconnectIdleUDP,
   autoDisconnectIdleUDPTime,
@@ -208,8 +191,8 @@ import {
   swipeInPages,
   swipeInTabs,
 } from '@/store/settings'
-import { ArrowUpCircleIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
-import { computed, ref } from 'vue'
+import { QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { computed } from 'vue'
 
 const { showTip } = useTooltip()
 
@@ -228,22 +211,6 @@ const isVisibleSwipeInPages = useIsSettingVisible(k.swipeInPages)
 const isVisibleSwipeInTabs = useIsSettingVisible(k.swipeInTabs)
 const isVisibleDisablePullToRefresh = useIsSettingVisible(k.disablePullToRefresh)
 const isVisibleDisplayAllFeatures = useIsSettingVisible(k.displayAllFeatures)
-
-const isUIUpgrading = ref(false)
-const handlerClickUpgradeUI = async () => {
-  if (isUIUpgrading.value) return
-  isUIUpgrading.value = true
-  try {
-    await upgradeUIAPI()
-    isUIUpgrading.value = false
-    handlerUpgradeSuccess()
-    setTimeout(() => {
-      window.location.reload()
-    }, 1000)
-  } catch {
-    isUIUpgrading.value = false
-  }
-}
 
 const hasVisibleGeneralItems = computed(() => {
   return (

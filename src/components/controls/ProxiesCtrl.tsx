@@ -16,7 +16,7 @@ import { renderProxiesPageItems } from '@/composables/proxies'
 import { isProxyNodeSearchMode, toggleProxySearchMode } from '@/composables/proxySearch'
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { PROXY_SORT_TYPE, PROXY_TAB_TYPE, ROUTE_NAME, SETTINGS_MENU_KEY } from '@/constant'
-import { getLanDeviceFilter, getValidLanDevice, sortLanDeviceNames } from '@/helper/lanDevice'
+import { getValidLanDevice, sortLanDeviceNames } from '@/helper/lanDevice'
 import { getMinCardWidth } from '@/helper/utils'
 import { activeConnections } from '@/store/connections'
 import { isProxyFolderModeActive } from '@/store/proxyFolders'
@@ -96,16 +96,13 @@ export default defineComponent({
       return sortLanDeviceNames(Array.from(devices))
     })
 
-    const selectedLanDevice = computed(() => {
-      return (
-        lanDevices.value.find((device) => proxiesFilter.value === getLanDeviceFilter(device)) ?? ''
-      )
-    })
+    const selectedLanDevice = computed(() =>
+      getValidLanDevice(proxiesDevice.value, lanDevices.value),
+    )
 
     const handlerLanDeviceChange = (event: Event) => {
       const device = (event.target as HTMLSelectElement).value
       proxiesDevice.value = device
-      proxiesFilter.value = getLanDeviceFilter(device)
     }
 
     watch(
@@ -114,9 +111,7 @@ export default defineComponent({
         if (!groups.length || !proxiesDevice.value) return
         if (getValidLanDevice(proxiesDevice.value, lanDevices.value)) return
 
-        // 配置删掉设备时同步清理持久状态，避免空白作用域。Clear stale persisted scopes.
         proxiesDevice.value = ''
-        proxiesFilter.value = ''
       },
       { immediate: true },
     )

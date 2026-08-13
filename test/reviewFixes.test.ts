@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { createGenerationGuard } from '../src/helper/generationGuard.ts'
 import { resolveGeoIPDatabaseURL } from '../src/helper/geoipDatabase.ts'
-import { parseLanRulesManifest } from '../src/helper/lanRulesManifest.ts'
+import {
+  createLanRulesDigest,
+  isLanRulesManifestForRules,
+  isLanRulesManifestSameOrigin,
+  parseLanRulesManifest,
+} from '../src/helper/lanRulesManifest.ts'
 
 test('routes notification messages through the text-only renderer', () => {
   const source = readFileSync(new URL('../src/helper/notification.ts', import.meta.url), 'utf8')
@@ -18,6 +23,50 @@ test('keeps a successful backend probe when update checks fail', () => {
   assert.match(source, /fetchBackendUpdateAvailableAPI\(\)\.catch\([\s\S]*?return false\n\s*}\)/)
 })
 
+test('keeps LAN device scope independent from proxy text search', () => {
+  const state = readFileSync(new URL('../src/assembly/proxies/index.ts', import.meta.url), 'utf8')
+  const controls = readFileSync(
+    new URL('../src/components/controls/ProxiesCtrl.tsx', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(state, /export const proxiesFilter = ref\(''\)/)
+  assert.match(controls, /const handlerLanDeviceChange[\s\S]*?proxiesDevice\.value = device/)
+  assert.doesNotMatch(
+    controls.match(/const handlerLanDeviceChange[\s\S]*?\n\s*}/)?.[0] ?? '',
+    /proxiesFilter/,
+  )
+})
+
+test('guards rule snapshots and manifests with the same asynchronous generation', () => {
+  const source = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /const rulesRequestGuard = createGenerationGuard\(\)/)
+  assert.match(source, /rulesRequestGuard\.isCurrent\(generation\)/)
+  assert.match(source, /isLanRulesManifestForRules\(manifest, snapshot\.rules\)/)
+})
+
+test('uses LAN device names in connection display and search values', () => {
+  const source = readFileSync(
+    new URL('../src/assembly/connections/accessor.ts', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(
+    source,
+    /case CONNECTIONS_TABLE_ACCESSOR_KEY\.SourceIP:[\s\S]*?getLanDeviceDisplayName/,
+  )
+})
+
+test('does not expose an unverifiable in-dashboard UI upgrade action', () => {
+  const source = readFileSync(
+    new URL('../src/components/settings/general/GeneralSettings.vue', import.meta.url),
+    'utf8',
+  )
+
+  assert.doesNotMatch(source, /upgradeUIAPI|upgradeDashboard/)
+})
+
 test('invalidates stale asynchronous generations', () => {
   const guard = createGenerationGuard()
   const first = guard.next()
@@ -30,13 +79,14 @@ test('invalidates stale asynchronous generations', () => {
 
 test('accepts a deeply valid LAN rules manifest', () => {
   const manifest = {
-    version: 1,
+    version: 2,
+    ruleCount: 5,
+    rulesDigest: '0123456789abcdef',
     devices: [
       {
         name: 'phone',
-        source: '192.168.1.2',
         subRule: 'lan/phone',
-        rules: [{ sourceIndex: 3, proxy: 'DIRECT' }],
+        rules: [{ sourceIndex: 3, sourceProxy: 'GLOBAL', proxy: 'lan/phone/GLOBAL' }],
       },
     ],
   }
@@ -46,26 +96,33 @@ test('accepts a deeply valid LAN rules manifest', () => {
 
 test('rejects malformed LAN rules manifest devices and bindings', () => {
   const malformed = [
-    { version: 1, devices: [{ name: 'phone', source: 'ip', subRule: 'lan/phone' }] },
     {
-      version: 1,
+      version: 2,
+      ruleCount: 1,
+      rulesDigest: '0123456789abcdef',
+      devices: [{ name: 'phone', subRule: 'lan/phone' }],
+    },
+    {
+      version: 2,
+      ruleCount: 4,
+      rulesDigest: '0123456789abcdef',
       devices: [
         {
           name: 'phone',
-          source: 'ip',
           subRule: 'lan/phone',
-          rules: [{ sourceIndex: '3', proxy: 'DIRECT' }],
+          rules: [{ sourceIndex: '3', sourceProxy: 'GLOBAL', proxy: 'DIRECT' }],
         },
       ],
     },
     {
-      version: 1,
+      version: 2,
+      ruleCount: 4,
+      rulesDigest: '0123456789abcdef',
       devices: [
         {
           name: '',
-          source: 'ip',
           subRule: 'lan/phone',
-          rules: [{ sourceIndex: 3, proxy: 'DIRECT' }],
+          rules: [{ sourceIndex: 3, sourceProxy: 'GLOBAL', proxy: 'DIRECT' }],
         },
       ],
     },
@@ -74,6 +131,46 @@ test('rejects malformed LAN rules manifest devices and bindings', () => {
   for (const manifest of malformed) {
     assert.throws(() => parseLanRulesManifest(manifest), /invalid LAN rules manifest/)
   }
+})
+
+test('accepts manifests only for the matching backend rule snapshot', () => {
+  const rules = [
+    { index: 0, type: 'SubRules', payload: '(SRC-IP-CIDR,192.168.1.2/32)', proxy: 'lan/phone' },
+    { index: 1, type: 'RuleSet', payload: 'openai', proxy: 'GLOBAL' },
+  ]
+  const manifest = parseLanRulesManifest({
+    version: 2,
+    ruleCount: 2,
+    rulesDigest: createLanRulesDigest(rules, [1]),
+    devices: [
+      {
+        name: 'phone',
+        subRule: 'lan/phone',
+        rules: [{ sourceIndex: 1, sourceProxy: 'GLOBAL', proxy: 'lan/phone/GLOBAL' }],
+      },
+    ],
+  })
+  assert.equal(isLanRulesManifestForRules(manifest, rules), true)
+  assert.equal(
+    isLanRulesManifestForRules(manifest, [{ ...rules[0] }, { ...rules[1], proxy: 'DIRECT' }]),
+    false,
+  )
+  assert.equal(
+    isLanRulesManifestForRules(manifest, [rules[0], { ...rules[1], payload: 'different' }]),
+    false,
+  )
+  assert.equal(isLanRulesManifestForRules({ ...manifest, ruleCount: 3 }, rules), false)
+})
+
+test('loads a LAN rules manifest only from the active backend origin', () => {
+  assert.equal(
+    isLanRulesManifestSameOrigin('https://gateway.example/ui/', 'https://gateway.example'),
+    true,
+  )
+  assert.equal(
+    isLanRulesManifestSameOrigin('https://gateway-a.example/ui/', 'https://gateway-b.example'),
+    false,
+  )
 })
 
 test('uses the built-in GeoIP database URL for empty settings', () => {

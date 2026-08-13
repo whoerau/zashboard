@@ -3,12 +3,11 @@ import test from 'node:test'
 import {
   createLanDeviceResolver,
   getLanDeviceDisplayName,
-  getLanDeviceFilter,
   getLanDeviceFromScopedProxyName,
   getLanDeviceName,
   getLanDeviceScopedProxyName,
   getValidLanDevice,
-  isLanDeviceFilter,
+  isProxyGroupInLanDeviceScope,
   LAN_DEVICE_STORAGE_KEYS,
   resolveRulesDeviceSelection,
   sortLanDeviceNames,
@@ -29,6 +28,25 @@ test('resolves LAN devices from source CIDR sub-rules', () => {
   assert.equal(getLanDeviceName('Inner', rules), undefined)
 })
 
+test('resolves raw source CIDRs, no-resolve, and IPv4-mapped sources', () => {
+  const rules = [
+    {
+      type: 'SRC-IP-CIDR',
+      proxy: 'lan/phone',
+      payload: '192.168.50.94/32,no-resolve',
+    },
+    {
+      type: 'SRC-IP-CIDR6',
+      proxy: 'lan/tablet',
+      payload: '2001:db8::5/128,no-resolve',
+    },
+  ]
+
+  assert.equal(getLanDeviceName('192.168.50.94', rules), 'phone')
+  assert.equal(getLanDeviceName('::ffff:192.168.50.94', rules), 'phone')
+  assert.equal(getLanDeviceName('2001:db8::5', rules), 'tablet')
+})
+
 test('adds the LAN device name to known source IPs', () => {
   const rules = [{ proxy: 'lan/oneplus8', payload: '(SRC-IP-CIDR,192.168.50.94/32)' }]
 
@@ -45,10 +63,8 @@ test('adds the LAN device name to known source IPs', () => {
 test('restores only valid LAN device scopes', () => {
   assert.equal(getValidLanDevice('iphone14pm', ['iphone14pm', 'solana']), 'iphone14pm')
   assert.equal(getValidLanDevice('removed', ['iphone14pm', 'solana']), '')
-  assert.equal(getLanDeviceFilter('iphone14pm'), '^lan/iphone14pm/')
-  assert.equal(getLanDeviceFilter('pixel.9'), '^lan/pixel\\.9/')
-  assert.equal(isLanDeviceFilter('^lan/iphone14pm/', 'iphone14pm'), true)
-  assert.equal(isLanDeviceFilter('^lan/pixel.9/', 'pixel.9'), false)
+  assert.equal(isProxyGroupInLanDeviceScope('lan/iphone14pm/GLOBAL', 'iphone14pm'), true)
+  assert.equal(isProxyGroupInLanDeviceScope('lan/iphone14/GLOBAL', 'iphone14pm'), false)
 })
 
 test('keeps Proxies and Rules device persistence independent', () => {

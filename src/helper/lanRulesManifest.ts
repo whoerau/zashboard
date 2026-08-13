@@ -1,18 +1,27 @@
 export type LanRuleBinding = {
   sourceIndex: number
+  sourceProxy: string
   proxy: string
 }
 
 export type LanRulesDevice = {
   name: string
-  source: string
   subRule: string
   rules: LanRuleBinding[]
 }
 
 export type LanRulesManifest = {
-  version: 1
+  version: 2
+  ruleCount: number
+  rulesDigest: string
   devices: LanRulesDevice[]
+}
+
+type ManifestSourceRule = {
+  index: number
+  payload?: string
+  type: string
+  proxy: string
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -25,27 +34,106 @@ const isLanRuleBinding = (value: unknown): value is LanRuleBinding =>
   isRecord(value) &&
   Number.isInteger(value.sourceIndex) &&
   (value.sourceIndex as number) >= 0 &&
+  isNonEmptyString(value.sourceProxy) &&
   isNonEmptyString(value.proxy)
 
 const isLanRulesDevice = (value: unknown): value is LanRulesDevice =>
   isRecord(value) &&
   isNonEmptyString(value.name) &&
-  isNonEmptyString(value.source) &&
   isNonEmptyString(value.subRule) &&
   Array.isArray(value.rules) &&
   value.rules.every(isLanRuleBinding)
 
 export const parseLanRulesManifest = (value: unknown): LanRulesManifest => {
-  // 外部清单必须整棵验证，避免渲染期才因嵌套字段崩溃。
-  // Validate the complete external manifest before render-time use.
+  // Validate every external field before using indexes against live rules.
+  // 使用外部索引匹配实时规则前，必须完整验证所有字段。
   if (
     !isRecord(value) ||
-    value.version !== 1 ||
+    value.version !== 2 ||
+    !Number.isInteger(value.ruleCount) ||
+    (value.ruleCount as number) < 0 ||
+    typeof value.rulesDigest !== 'string' ||
+    !/^[0-9a-f]{16}$/.test(value.rulesDigest) ||
     !Array.isArray(value.devices) ||
     !value.devices.every(isLanRulesDevice)
   ) {
     throw new TypeError('invalid LAN rules manifest')
   }
 
-  return value as LanRulesManifest
+  const manifest = value as LanRulesManifest
+  const deviceNames = manifest.devices.map((device) => device.name)
+  const subRules = manifest.devices.map((device) => device.subRule)
+  const referenceSources = manifest.devices[0]?.rules.map(
+    ({ sourceIndex, sourceProxy }) => `${sourceIndex}\0${sourceProxy}`,
+  )
+  const hasInvalidDevice = manifest.devices.some((device) => {
+    const sourceIndexes = device.rules.map((rule) => rule.sourceIndex)
+    const sources = device.rules.map(
+      ({ sourceIndex, sourceProxy }) => `${sourceIndex}\0${sourceProxy}`,
+    )
+    return (
+      device.subRule !== `lan/${device.name}` ||
+      new Set(sourceIndexes).size !== sourceIndexes.length ||
+      sources.some((source, index) => source !== referenceSources?.[index]) ||
+      sources.length !== (referenceSources?.length ?? 0)
+    )
+  })
+  if (
+    new Set(deviceNames).size !== deviceNames.length ||
+    new Set(subRules).size !== subRules.length ||
+    hasInvalidDevice
+  ) {
+    throw new TypeError('invalid LAN rules manifest')
+  }
+
+  return manifest
+}
+
+export const createLanRulesDigest = (
+  rules: readonly ManifestSourceRule[],
+  sourceIndexes: readonly number[],
+) => {
+  // Mirror the generator's UTF-8 FNV-1a identity without exposing raw payloads.
+  // 与生成器使用同一 UTF-8 FNV-1a 身份摘要，避免暴露原始 payload。
+  const byIndex = new Map(rules.map((rule) => [rule.index, rule]))
+  const canonical = sourceIndexes
+    .map((sourceIndex) => {
+      const source = byIndex.get(sourceIndex)
+      return `${sourceIndex}\0${source?.payload ?? ''}\0${source?.proxy ?? ''}`
+    })
+    .join('\n')
+  let hash = 14695981039346656037n
+  for (const byte of new TextEncoder().encode(canonical)) {
+    hash ^= BigInt(byte)
+    hash = BigInt.asUintN(64, hash * 1099511628211n)
+  }
+  return hash.toString(16).padStart(16, '0')
+}
+
+export const isLanRulesManifestForRules = (
+  manifest: LanRulesManifest,
+  rules: readonly ManifestSourceRule[],
+) => {
+  if (manifest.ruleCount !== rules.length) return false
+
+  const byIndex = new Map(rules.map((rule) => [rule.index, rule]))
+  const sourceIndexes = manifest.devices[0]?.rules.map((rule) => rule.sourceIndex) ?? []
+  if (createLanRulesDigest(rules, sourceIndexes) !== manifest.rulesDigest) return false
+
+  return manifest.devices.every(
+    (device) =>
+      rules.some((rule) => rule.type === 'SubRules' && rule.proxy === device.subRule) &&
+      device.rules.every(({ sourceIndex, sourceProxy }) => {
+        const source = byIndex.get(sourceIndex)
+        return source?.proxy === sourceProxy
+      }),
+  )
+}
+
+export const isLanRulesManifestSameOrigin = (documentBaseURI: string, backendURL: string) => {
+  try {
+    return new URL(documentBaseURI).origin === new URL(backendURL).origin
+  } catch {
+    return false
+  }
 }

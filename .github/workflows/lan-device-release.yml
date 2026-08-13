@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
       - uses: pnpm/action-setup@v6
 
@@ -38,18 +40,24 @@ jobs:
       - name: Publish rolling release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: lan-device-filter-latest
+          RELEASE_TAG: lan-device-filter-${{ github.sha }}
         run: |
           git fetch origin "+refs/heads/$GITHUB_REF_NAME:refs/remotes/origin/$GITHUB_REF_NAME"
           if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
             echo "A newer branch commit exists; skipping this stale release."
             exit 0
           fi
-          git tag -f "$TAG" "$GITHUB_SHA"
-          git push origin "refs/tags/$TAG" --force
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist.zip --clobber
-            gh release edit "$TAG" --title "lan-device-filter latest" --notes "Built from $GITHUB_SHA" --latest
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist.zip --clobber
+            gh release edit "$RELEASE_TAG" --title "lan-device-filter $GITHUB_SHA" --notes "Built from $GITHUB_SHA"
           else
-            gh release create "$TAG" dist.zip --title "lan-device-filter latest" --notes "Built from $GITHUB_SHA" --target "$GITHUB_SHA" --latest
+            gh release create "$RELEASE_TAG" dist.zip --title "lan-device-filter $GITHUB_SHA" --notes "Built from $GITHUB_SHA" --target "$GITHUB_SHA" --draft
           fi
+
+          # Promote only after the immutable release and asset are complete.
+          # 不可变发布及资产全部就绪后，才原子切换 latest 指针。
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          test "$(gh api repos/$GITHUB_REPOSITORY/releases/latest --jq .tag_name)" = "$RELEASE_TAG"
+          gh release download "$RELEASE_TAG" --pattern dist.zip --dir "$RUNNER_TEMP/release-check"
+          test -s "$RUNNER_TEMP/release-check/dist.zip"

@@ -1,6 +1,7 @@
 import ipaddr from 'ipaddr.js'
 
 type LanSourceRule = {
+  type?: string
   proxy: string
   payload: string
 }
@@ -24,20 +25,14 @@ export const sortLanDeviceNames = (devices: readonly string[]) =>
   [...devices].sort((a, b) => {
     const aIsSlot = isReservedLanDeviceSlot(a)
     const bIsSlot = isReservedLanDeviceSlot(b)
-    // 预留槽排在真实设备后面。Keep reserved slots below named devices.
+    // Keep reserved slots below named devices.
+    // 预留槽排在真实设备后面。
     if (aIsSlot !== bIsSlot) return aIsSlot ? 1 : -1
     return a.localeCompare(b)
   })
 
-export const getLanDeviceFilter = (device: string) => {
-  if (!device) return ''
-  // 设备名进入正则前必须转义，避免改变搜索语义。Escape device names before regex use.
-  const escaped = device.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return `^lan/${escaped}/`
-}
-
-export const isLanDeviceFilter = (filter: string, device: string) =>
-  Boolean(device && filter.trim() === getLanDeviceFilter(device))
+export const isProxyGroupInLanDeviceScope = (name: string, device: string) =>
+  Boolean(device && name.startsWith(`lan/${device}/`))
 
 export const getLanDeviceFromScopedProxyName = (name: string) =>
   name.match(/^lan\/([^/]+)\//)?.[1] ?? ''
@@ -51,7 +46,13 @@ export const getLanDeviceScopedProxyName = (name: string, device: string) => {
 export const createLanDeviceResolver = (rules: readonly LanSourceRule[]): LanDeviceResolver => {
   const compiled = rules.flatMap((rule) => {
     const device = rule.proxy.match(/^lan\/([^/]+)$/)?.[1]
-    const source = rule.payload.match(/^\(\s*SRC-IP-CIDR\s*,\s*([^)]+)\)$/i)?.[1]
+    const customSource = rule.payload.match(
+      /^\(\s*SRC-IP-CIDR6?\s*,\s*([^,\s)]+)(?:\s*,\s*no-resolve)?\s*\)$/i,
+    )?.[1]
+    const type = rule.type?.replace(/[^a-z0-9]/gi, '').toUpperCase()
+    const rawSource =
+      type === 'SRCIPCIDR' || type === 'SRCIPCIDR6' ? rule.payload.split(',')[0]?.trim() : undefined
+    const source = customSource || rawSource
     if (!device || !source) return []
 
     try {
@@ -69,13 +70,16 @@ export const createLanDeviceResolver = (rules: readonly LanSourceRule[]): LanDev
       return
     }
 
-    const address = ipaddr.parse(ip)
+    const parsed = ipaddr.parse(ip)
+    const address =
+      parsed instanceof ipaddr.IPv6 && parsed.isIPv4MappedAddress()
+        ? parsed.toIPv4Address()
+        : parsed
     const match = compiled.find(
       ({ cidr }) => address.kind() === cidr[0].kind() && address.match(cidr),
     )
     const device = match?.device
 
-    // 同一 rules snapshot 内缓存命中与未命中。Cache hits and misses per rules snapshot.
     cache.set(ip, device)
     return device
   }

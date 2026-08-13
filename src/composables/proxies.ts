@@ -3,7 +3,6 @@ import { configs } from '@/assembly/config'
 import {
   getProxyGroupChains,
   proxiesDevice,
-  proxiesFilter,
   proxiesTabShow,
   proxyGroupList,
   proxyMap,
@@ -11,7 +10,7 @@ import {
 } from '@/assembly/proxies'
 import { GLOBAL, PROXY_TAB_TYPE } from '@/constant'
 import { isHiddenGroup } from '@/helper'
-import { isLanDeviceFilter } from '@/helper/lanDevice'
+import { isProxyGroupInLanDeviceScope } from '@/helper/lanDevice'
 import { groupsInActiveFolder, isProxyFolderModeActive } from '@/store/proxyFolders'
 import { customGlobalNode, displayGlobalByMode, manageHiddenGroup } from '@/store/settings'
 import { isEmpty } from 'lodash'
@@ -25,26 +24,32 @@ import {
 } from './proxySearch'
 
 const filterProxyGroups = (groups: string[], respectHiddenGroups = true) => {
+  const scopedGroups = proxiesDevice.value
+    ? groups.filter((name) => isProxyGroupInLanDeviceScope(name, proxiesDevice.value))
+    : groups
+
   if (!proxySearchKeyword.value) {
-    if (!respectHiddenGroups || manageHiddenGroup.value) {
-      return groups
+    if (!respectHiddenGroups || manageHiddenGroup.value || proxiesDevice.value) {
+      return scopedGroups
     }
 
-    return groups.filter((name) => !isHiddenGroup(name))
+    return scopedGroups.filter((name) => !isHiddenGroup(name))
   }
 
-  const matchesGroup = isLanDeviceFilter(proxiesFilter.value, proxiesDevice.value)
-    ? (name: string) => matchProxySearchKeyword(name)
-    : isProxyNodeSearchMode.value
-      ? proxyGroupContainsMatchingNode
-      : (name: string) => matchProxySearchKeyword(name)
+  const matchesGroup = isProxyNodeSearchMode.value
+    ? proxyGroupContainsMatchingNode
+    : (name: string) => matchProxySearchKeyword(name)
 
-  return groups.filter(matchesGroup)
+  return scopedGroups.filter(matchesGroup)
 }
 
 const getRenderProxyGroups = () => {
   if (isEmpty(proxyMap.value)) {
     return []
+  }
+
+  if (proxiesDevice.value) {
+    return filterProxyGroups(proxyGroupList.value)
   }
 
   if (displayGlobalByMode.value) {
@@ -106,7 +111,7 @@ export const renderProxiesPageItems = computed(() => {
   }
 
   const groups = renderProxyGroups.value
-  if (!isProxyFolderModeActive.value) return groups
+  if (!isProxyFolderModeActive.value || proxiesDevice.value) return groups
   const filter = groupsInActiveFolder.value
   if (!filter) return groups
   return groups.filter((name) => filter.has(name))

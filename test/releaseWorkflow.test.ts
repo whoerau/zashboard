@@ -10,7 +10,7 @@ test('defines the canonical Node test command', () => {
   assert.equal(packageJSON.scripts?.test, 'node --test test/*.test.ts')
 })
 
-test('runs tests before type checking and building the rolling release', () => {
+test('runs tests before type checking and building the immutable release', () => {
   const workflow = readFileSync(
     new URL('../.github/workflows/lan-device-release.yml', import.meta.url),
     'utf8',
@@ -24,7 +24,7 @@ test('runs tests before type checking and building the rolling release', () => {
   assert.ok(typeCheckIndex < buildIndex)
 })
 
-test('cancels stale rolling releases and verifies the branch head before publishing', () => {
+test('verifies branch head before atomically promoting an immutable release', () => {
   const workflow = readFileSync(
     new URL('../.github/workflows/lan-device-release.yml', import.meta.url),
     'utf8',
@@ -38,8 +38,12 @@ test('cancels stale rolling releases and verifies the branch head before publish
   assert.doesNotMatch(workflow, /workflow_dispatch/)
 
   const verifyIndex = workflow.indexOf('origin/$GITHUB_REF_NAME')
-  const tagIndex = workflow.indexOf('git tag -f')
+  const createIndex = workflow.indexOf('gh release create')
+  const promoteIndex = workflow.indexOf('--draft=false --latest')
 
   assert.ok(verifyIndex >= 0)
-  assert.ok(verifyIndex < tagIndex)
+  assert.ok(verifyIndex < createIndex)
+  assert.ok(createIndex < promoteIndex)
+  assert.match(workflow, /RELEASE_TAG: lan-device-filter-\$\{\{ github\.sha \}\}/)
+  assert.doesNotMatch(workflow, /git tag -f|--force/)
 })

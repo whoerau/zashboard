@@ -38,5 +38,5 @@ import { isUIUpdateAvailable, zashboardVersion } from '@/assembly/version'
 import GeneralSettings from './GeneralSettings.vue'
 import StyleSettings from './StyleSettings.vue'
 
-const commitId = __COMMIT_ID__
+const commitId = __COMMIT_ID__.slice(0, 7)
 </script>

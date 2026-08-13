@@ -77,6 +77,7 @@
             :show-now-node="displayNowNodeInRule"
             :show-latency="displayLatencyInRule"
             :filter="rulesFilter"
+            :lan-device="rulesDevice"
             :interactive="!isCollapsed"
             @update:selected="selected = $event"
           />
@@ -110,6 +111,7 @@ import { proxyGroupList } from '@/assembly/proxies'
 import {
   fetchRules,
   ruleProviderList,
+  rulesDevice,
   rulesFilter,
   toggleRuleDisabled,
   updateRuleProviderAPI,

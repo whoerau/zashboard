@@ -10,10 +10,13 @@ import SingBoxLogo from '@/assets/images/sing-box.svg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
 import { createGenerationGuard } from '@/helper/generationGuard'
 import {
-  canAutoUpgradeForkUI,
+  FORK_UI_COMPARE_API_URL,
   FORK_UI_RELEASE_API_URL,
+  getForkUIReleaseCommit,
   isForkUIUpdateAvailable,
+  isSameCommit,
   type ForkUIRelease,
+  type GitHubComparisonStatus,
 } from '@/helper/uiUpdate'
 import { autoUpgradeCore, checkUpgradeCore } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
@@ -225,8 +228,17 @@ export const fetchIsUIUpdateAvailable = async () => {
     FORK_UI_RELEASE_API_URL,
     `${zashboardVersion.value}/${__COMMIT_ID__ || 'no-commit'}`,
   )
+  const releaseCommit = getForkUIReleaseCommit(release)
+  let comparisonStatus: GitHubComparisonStatus | undefined
+  if (__COMMIT_ID__ && releaseCommit && !isSameCommit(__COMMIT_ID__, releaseCommit)) {
+    const comparison = await fetchWithLocalCache<{ status: GitHubComparisonStatus }>(
+      `${FORK_UI_COMPARE_API_URL}/${encodeURIComponent(__COMMIT_ID__)}...${encodeURIComponent(releaseCommit)}`,
+      `${__COMMIT_ID__}/${releaseCommit}`,
+    )
+    comparisonStatus = comparison.status
+  }
 
-  return isForkUIUpdateAvailable(release, __COMMIT_ID__, zashboardVersion.value)
+  return isForkUIUpdateAvailable(release, __COMMIT_ID__, zashboardVersion.value, comparisonStatus)
 }
 
 const check = async (url: string, versionNumber: string) => {
@@ -248,10 +260,6 @@ export const isUIUpdateAvailable = ref(false)
 
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
-  // Mihomo /configs 不暴露 external-ui-url，无法安全证明下载源。Never auto-update unverified UI.
-  if (isUIUpdateAvailable.value && canAutoUpgradeForkUI()) {
-    upgradeUIAPI()
-  }
 }
 
 // 内核 / UI 维护动作(Clash 专属,无后端分支),经版本域门面暴露给 view。

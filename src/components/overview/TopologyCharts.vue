@@ -138,8 +138,6 @@ const topologyData = computed(() =>
       const source = getConnectionSourceIP(connection)
       if (!shouldRenderTopologySource(source)) return []
 
-      // Preserve fork-only LAN labels while using the upstream topology builder.
-      // 使用上游拓扑构建器时保留分支专有的局域网设备标签。
       return [
         {
           source: getLanDeviceDisplayName(source, resolveLanDevice.value, getIPLabelFromMap),

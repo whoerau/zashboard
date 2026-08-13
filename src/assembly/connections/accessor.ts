@@ -4,7 +4,9 @@
 // createGetConnectionDisplayValue 基于某一份 accessor 生成对应后端的 getConnectionDisplayValue,
 // 由 index.ts 门面按当前后端动态选用。
 import { getGeoIPInfoSync } from '@/api/geoip'
+import { lanDeviceResolver } from '@/assembly/rules'
 import { CONNECTIONS_TABLE_ACCESSOR_KEY, PROXY_CHAIN_DIRECTION } from '@/constant'
+import { getLanDeviceDisplayName } from '@/helper/lanDevice'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
 import type { Connection } from '@/types'
@@ -115,7 +117,11 @@ export const createGetConnectionDisplayValue =
       case CONNECTIONS_TABLE_ACCESSOR_KEY.ConnectTime:
         return fromNow(accessor.start(connection))
       case CONNECTIONS_TABLE_ACCESSOR_KEY.SourceIP:
-        return getIPLabelFromMap(accessor.sourceIP(connection))
+        return getLanDeviceDisplayName(
+          accessor.sourceIP(connection),
+          lanDeviceResolver.value,
+          getIPLabelFromMap,
+        )
       case CONNECTIONS_TABLE_ACCESSOR_KEY.SourcePort:
         return accessor.sourcePort(connection)
       case CONNECTIONS_TABLE_ACCESSOR_KEY.SniffHost:
