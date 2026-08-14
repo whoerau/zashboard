@@ -39,11 +39,20 @@ test('verifies branch head before atomically promoting an immutable release', ()
 
   const verifyIndex = workflow.indexOf('origin/$GITHUB_REF_NAME')
   const createIndex = workflow.indexOf('gh release create')
+  const downloadIndex = workflow.indexOf('gh release download')
+  const compareIndex = workflow.indexOf('cmp --silent')
   const promoteIndex = workflow.indexOf('--draft=false --latest')
+  const headChecks = [...workflow.matchAll(/origin\/\$GITHUB_REF_NAME/g)].map(
+    (match) => match.index,
+  )
 
   assert.ok(verifyIndex >= 0)
   assert.ok(verifyIndex < createIndex)
-  assert.ok(createIndex < promoteIndex)
+  assert.ok(createIndex < downloadIndex)
+  assert.ok(downloadIndex < compareIndex)
+  assert.ok(compareIndex < headChecks.at(-1)!)
+  assert.ok(headChecks.at(-1)! < promoteIndex)
+  assert.ok(headChecks.length >= 2)
   assert.match(workflow, /RELEASE_TAG: lan-device-filter-\$\{\{ github\.sha \}\}/)
   assert.doesNotMatch(workflow, /git tag -f|--force/)
 })

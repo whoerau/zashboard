@@ -55,9 +55,18 @@ jobs:
             gh release create "$RELEASE_TAG" dist.zip --title "lan-device-filter $GITHUB_SHA" --notes "Built from $GITHUB_SHA" --target "$GITHUB_SHA" --draft
           fi
 
+          # Verify the uploaded bytes before publishing or moving latest.
+          # 发布或移动 latest 前，先验证上传资产的实际字节。
+          gh release download "$RELEASE_TAG" --pattern dist.zip --output "$RUNNER_TEMP/published-dist.zip" --clobber
+          cmp --silent dist.zip "$RUNNER_TEMP/published-dist.zip"
+
+          git fetch origin "+refs/heads/$GITHUB_REF_NAME:refs/remotes/origin/$GITHUB_REF_NAME"
+          if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
+            echo "A newer branch commit exists; leaving this release unpromoted."
+            exit 0
+          fi
+
           # Promote only after the immutable release and asset are complete.
           # 不可变发布及资产全部就绪后，才原子切换 latest 指针。
           gh release edit "$RELEASE_TAG" --draft=false --latest
           test "$(gh api repos/$GITHUB_REPOSITORY/releases/latest --jq .tag_name)" = "$RELEASE_TAG"
-          gh release download "$RELEASE_TAG" --pattern dist.zip --dir "$RUNNER_TEMP/release-check"
-          test -s "$RUNNER_TEMP/release-check/dist.zip"

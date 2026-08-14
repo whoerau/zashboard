@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { getBackendScopedSnapshot } from '../src/helper/backendSnapshot.ts'
 import { createGenerationGuard } from '../src/helper/generationGuard.ts'
 import { resolveGeoIPDatabaseURL } from '../src/helper/geoipDatabase.ts'
+import { createLanDeviceResolver } from '../src/helper/lanDevice.ts'
 import {
   createLanRulesDigest,
+  filterLanManifestSubRules,
   isLanRulesManifestForRules,
   isLanRulesManifestSameOrigin,
   parseLanRulesManifest,
@@ -44,6 +47,38 @@ test('guards rule snapshots and manifests with the same asynchronous generation'
   assert.match(source, /const rulesRequestGuard = createGenerationGuard\(\)/)
   assert.match(source, /rulesRequestGuard\.isCurrent\(generation\)/)
   assert.match(source, /isLanRulesManifestForRules\(manifest, snapshot\.rules\)/)
+  assert.match(source, /rulesSnapshotKey\.value !== requestSnapshotKey\) clearRulesSnapshot\(\)/)
+})
+
+test('does not expose a previous backend rule or manifest snapshot', () => {
+  const backendARules = [
+    {
+      type: 'SubRules',
+      payload: '(SRC-IP-CIDR,192.168.50.94/32)',
+      proxy: 'lan/phone',
+    },
+  ]
+
+  const rules = getBackendScopedSnapshot(backendARules, 'clash:backend-a', 'clash:backend-b')
+  const devices = getBackendScopedSnapshot(
+    [{ name: 'phone', subRule: 'lan/phone', rules: [] }],
+    'clash:backend-a',
+    'clash:backend-b',
+  )
+
+  assert.equal(createLanDeviceResolver(rules)('192.168.50.94'), undefined)
+  assert.deepEqual(devices, [])
+})
+
+test('shows Sub-Rules unless an active LAN manifest identifies them', () => {
+  const rules = [
+    { type: 'SubRules', proxy: 'lan/phone' },
+    { type: 'SubRules', proxy: 'custom/sub-rule' },
+    { type: 'RuleSet', proxy: 'GLOBAL' },
+  ]
+
+  assert.deepEqual(filterLanManifestSubRules(rules, []), rules)
+  assert.deepEqual(filterLanManifestSubRules(rules, [{ subRule: 'lan/phone' }]), rules.slice(1))
 })
 
 test('uses LAN device names in connection display and search values', () => {
@@ -151,6 +186,21 @@ test('accepts manifests only for the matching backend rule snapshot', () => {
     ],
   })
   assert.equal(isLanRulesManifestForRules(manifest, rules), true)
+  assert.equal(
+    isLanRulesManifestForRules(
+      {
+        ...manifest,
+        devices: [
+          {
+            ...manifest.devices[0],
+            rules: [{ ...manifest.devices[0].rules[0], proxy: 'lan/tablet/GLOBAL' }],
+          },
+        ],
+      },
+      rules,
+    ),
+    false,
+  )
   assert.equal(
     isLanRulesManifestForRules(manifest, [{ ...rules[0] }, { ...rules[1], proxy: 'DIRECT' }]),
     false,

@@ -3,6 +3,7 @@
 import { toggleRuleDisabledAPI, toggleRuleDisabledSingBoxAPI } from '@/api/clash'
 import { Channel, channel } from '@/assembly/backend'
 import { RULE_TAB_TYPE } from '@/constant'
+import { getBackendScopedSnapshot } from '@/helper/backendSnapshot'
 import { createGenerationGuard } from '@/helper/generationGuard'
 import {
   createLanDeviceResolver,
@@ -10,6 +11,7 @@ import {
   resolveRulesDeviceSelection,
 } from '@/helper/lanDevice'
 import {
+  filterLanManifestSubRules,
   isLanRulesManifestForRules,
   isLanRulesManifestSameOrigin,
   type LanRulesManifest,
@@ -33,18 +35,39 @@ export const rulesFilter = ref('')
 export const rulesTabShow = ref(RULE_TAB_TYPE.RULES)
 export const rulesDevice = useStorage<string>(LAN_DEVICE_STORAGE_KEYS.rules, '')
 
-export const rules = ref<Rule[]>([])
-export const ruleProviderList = ref<RuleProvider[]>([])
-export const lanDeviceResolver = computed(() => createLanDeviceResolver(rules.value))
-
-export const lanRulesManifest = ref<LanRulesManifest>(EMPTY_LAN_RULES_MANIFEST)
-const lanRulesManifestBackend = ref('')
 const currentBackendKey = computed(() => {
   const backend = activeBackend.value
   return backend ? `${backend.uuid}:${getUrlFromBackend(backend)}` : ''
 })
+const currentRulesSnapshotKey = computed(() => `${channel.value}:${currentBackendKey.value}`)
+const rulesSnapshotKey = ref('')
+const rulesSnapshot = ref<Rule[]>([])
+const ruleProviderSnapshot = ref<RuleProvider[]>([])
+
+export const rules = computed(() =>
+  getBackendScopedSnapshot(
+    rulesSnapshot.value,
+    rulesSnapshotKey.value,
+    currentRulesSnapshotKey.value,
+  ),
+)
+export const ruleProviderList = computed(() =>
+  getBackendScopedSnapshot(
+    ruleProviderSnapshot.value,
+    rulesSnapshotKey.value,
+    currentRulesSnapshotKey.value,
+  ),
+)
+export const lanDeviceResolver = computed(() => createLanDeviceResolver(rules.value))
+
+export const lanRulesManifest = ref<LanRulesManifest>(EMPTY_LAN_RULES_MANIFEST)
+const lanRulesManifestSnapshotKey = ref('')
 export const lanRulesDevices = computed(() =>
-  lanRulesManifestBackend.value === currentBackendKey.value ? lanRulesManifest.value.devices : [],
+  getBackendScopedSnapshot(
+    lanRulesManifest.value.devices,
+    lanRulesManifestSnapshotKey.value,
+    currentRulesSnapshotKey.value,
+  ),
 )
 
 const fetchLanRulesManifest = async (backendURL: string) => {
@@ -59,7 +82,7 @@ const fetchLanRulesManifest = async (backendURL: string) => {
   }
 }
 
-const defaultRules = computed(() => rules.value.filter((rule) => rule.type !== 'SubRules'))
+const defaultRules = computed(() => filterLanManifestSubRules(rules.value, lanRulesDevices.value))
 
 export const scopedRules = computed<Rule[]>(() => {
   if (!rulesDevice.value) return defaultRules.value
@@ -98,12 +121,26 @@ const load = (requestChannel: Channel) =>
 
 const rulesRequestGuard = createGenerationGuard()
 
+const clearRulesSnapshot = () => {
+  rulesSnapshot.value = []
+  ruleProviderSnapshot.value = []
+  rulesSnapshotKey.value = ''
+  lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
+  lanRulesManifestSnapshotKey.value = ''
+}
+
 export const fetchRules = async () => {
   const generation = rulesRequestGuard.next()
   const requestChannel = channel.value
   const backend = activeBackend.value
   const backendKey = currentBackendKey.value
+  const requestSnapshotKey = `${requestChannel}:${backendKey}`
   const backendURL = backend ? getUrlFromBackend(backend) : ''
+
+  // Drop a previous backend's data before any new request can fail or race.
+  // 在新请求可能失败或竞态前，先丢弃上一后端的数据。
+  if (rulesSnapshotKey.value !== requestSnapshotKey) clearRulesSnapshot()
+
   const manifestRequest =
     requestChannel === Channel.Clash && backendURL
       ? fetchLanRulesManifest(backendURL)
@@ -119,12 +156,13 @@ export const fetchRules = async () => {
     currentBackendKey.value === backendKey
   if (!isCurrent) return
 
-  rules.value = snapshot.rules
-  ruleProviderList.value = snapshot.ruleProviderList
+  rulesSnapshot.value = snapshot.rules
+  ruleProviderSnapshot.value = snapshot.ruleProviderList
+  rulesSnapshotKey.value = requestSnapshotKey
 
   if (manifest && isLanRulesManifestForRules(manifest, snapshot.rules)) {
     lanRulesManifest.value = manifest
-    lanRulesManifestBackend.value = backendKey
+    lanRulesManifestSnapshotKey.value = requestSnapshotKey
     rulesDevice.value = resolveRulesDeviceSelection(
       rulesDevice.value,
       manifest.devices.map((device) => device.name),
@@ -133,11 +171,11 @@ export const fetchRules = async () => {
   }
 
   const canKeepPrevious =
-    lanRulesManifestBackend.value === backendKey &&
+    lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
     isLanRulesManifestForRules(lanRulesManifest.value, snapshot.rules)
   if (!canKeepPrevious) {
     lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
-    lanRulesManifestBackend.value = ''
+    lanRulesManifestSnapshotKey.value = ''
   }
 }
 

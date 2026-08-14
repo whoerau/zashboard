@@ -15,9 +15,8 @@
 </template>
 
 <script setup lang="ts">
-import { rules } from '@/assembly/rules'
+import { lanDeviceResolver } from '@/assembly/rules'
 import { getConnectionSourceIP } from '@/helper'
-import { createLanDeviceResolver } from '@/helper/lanDevice'
 import { buildSourceIPOptions } from '@/helper/sourceIPFilter'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { sourceIPLabelList } from '@/store/settings'
@@ -56,26 +55,22 @@ const sourceIPOpts = ref<{ label: string; value: string[] }[]>([])
 const manualSourceIPLabels = computed(() =>
   sourceIPLabelList.value.map(({ key, label, scope }) => ({ key, label, scope })),
 )
-const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
-
 // do not use computed here for firefox
 watch(
-  [sourceIPs, rules, manualSourceIPLabels, activeBackend],
+  [sourceIPs, lanDeviceResolver, manualSourceIPLabels, activeBackend],
   ([value]) => {
     const options = buildSourceIPOptions({
       sourceIPs: value,
       sourceIPLabels: manualSourceIPLabels.value,
       activeBackendID: activeBackend.value?.uuid,
-      resolveLanDevice: resolveLanDevice.value,
+      resolveLanDevice: lanDeviceResolver.value,
       resolveSourceIPLabel: getIPLabelFromMap,
     })
 
     if (sourceIPFilter.value !== null) {
       const currentIP = sourceIPFilter.value[0]
-      const currentDevice = resolveLanDevice.value(currentIP)
-      const currentLabel = currentDevice
-        ? `${currentIP} (${currentDevice})`
-        : getIPLabelFromMap(currentIP)
+      const currentDevice = lanDeviceResolver.value(currentIP)
+      const currentLabel = currentDevice ?? getIPLabelFromMap(currentIP)
       const current = options.find((opt) => opt.label === currentLabel)
 
       if (!current) {

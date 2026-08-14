@@ -24,6 +24,11 @@ type ManifestSourceRule = {
   proxy: string
 }
 
+type SubRuleLike = {
+  type: string
+  proxy: string
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -71,11 +76,17 @@ export const parseLanRulesManifest = (value: unknown): LanRulesManifest => {
     const sources = device.rules.map(
       ({ sourceIndex, sourceProxy }) => `${sourceIndex}\0${sourceProxy}`,
     )
+    // Allow shared passthrough policies or this device's cloned selectors only.
+    // 仅允许共享直通策略或当前设备的克隆选择器。
+    const hasInvalidProxy = device.rules.some(
+      ({ sourceProxy, proxy }) => proxy !== sourceProxy && !proxy.startsWith(`lan/${device.name}/`),
+    )
     return (
       device.subRule !== `lan/${device.name}` ||
       new Set(sourceIndexes).size !== sourceIndexes.length ||
       sources.some((source, index) => source !== referenceSources?.[index]) ||
-      sources.length !== (referenceSources?.length ?? 0)
+      sources.length !== (referenceSources?.length ?? 0) ||
+      hasInvalidProxy
     )
   })
   if (
@@ -123,9 +134,10 @@ export const isLanRulesManifestForRules = (
   return manifest.devices.every(
     (device) =>
       rules.some((rule) => rule.type === 'SubRules' && rule.proxy === device.subRule) &&
-      device.rules.every(({ sourceIndex, sourceProxy }) => {
+      device.rules.every(({ sourceIndex, sourceProxy, proxy }) => {
         const source = byIndex.get(sourceIndex)
-        return source?.proxy === sourceProxy
+        const proxyIsDeviceScoped = proxy === sourceProxy || proxy.startsWith(`lan/${device.name}/`)
+        return source?.proxy === sourceProxy && proxyIsDeviceScoped
       }),
   )
 }
@@ -136,4 +148,12 @@ export const isLanRulesManifestSameOrigin = (documentBaseURI: string, backendURL
   } catch {
     return false
   }
+}
+
+export const filterLanManifestSubRules = <T extends SubRuleLike>(
+  rules: readonly T[],
+  devices: readonly Pick<LanRulesDevice, 'subRule'>[],
+) => {
+  const lanSubRules = new Set(devices.map((device) => device.subRule))
+  return rules.filter((rule) => rule.type !== 'SubRules' || !lanSubRules.has(rule.proxy))
 }
