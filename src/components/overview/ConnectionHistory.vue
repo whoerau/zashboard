@@ -195,10 +195,13 @@
 </template>
 
 <script setup lang="ts">
+import { rules } from '@/assembly/rules'
 import { ConnectionHistoryType } from '@/helper/indexeddb'
+import { createLanDeviceResolver, getLanDeviceDisplayName } from '@/helper/lanDevice'
 import { showNotification } from '@/helper/notification'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { useTooltip } from '@/helper/tooltip'
+import { buildConnectionHistoryView } from '@/helper/topology'
 import { prettyBytesHelper } from '@/helper/utils'
 import {
   aggregateConnections,
@@ -251,25 +254,20 @@ const aggregationType = useStorage<ConnectionHistoryType>(
   ConnectionHistoryType.SourceIP,
 )
 const historicalData = computed(() => aggregatedDataMap.value[aggregationType.value])
-const aggregatedData = computed<ConnectionHistoryData[]>(() => {
+const connectionHistoryView = computed(() => {
   const currentData = aggregateConnections(activeConnections.value, aggregationType.value)
+  const mergedData = mergeAggregatedData(historicalData.value, currentData)
 
-  return mergeAggregatedData(historicalData.value, currentData)
-})
-
-const totalStats = computed(() => {
-  return aggregatedData.value.reduce(
-    (acc, item) => {
-      acc.download += item.download
-      acc.upload += item.upload
-      acc.count += item.count
-      return acc
-    },
-    { download: 0, upload: 0, count: 0 },
+  return buildConnectionHistoryView(
+    mergedData,
+    aggregationType.value === ConnectionHistoryType.SourceIP,
   )
 })
+const aggregatedData = computed<ConnectionHistoryData[]>(() => connectionHistoryView.value.rows)
+const totalStats = computed(() => connectionHistoryView.value.totals)
 
 const aggregateSourceCount = computed(() => aggregatedData.value.length)
+const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
 
 const aggregateSourceLabel = computed(() => {
   if (aggregationType.value === ConnectionHistoryType.SourceIP) {
@@ -292,7 +290,7 @@ const columns = computed<ColumnDef<ConnectionHistoryData>[]>(() => {
     accessorFn: (row) => row.key,
     cell: ({ row }) => {
       if (aggregationType.value === ConnectionHistoryType.SourceIP) {
-        return getIPLabelFromMap(row.original.key)
+        return getLanDeviceDisplayName(row.original.key, resolveLanDevice.value, getIPLabelFromMap)
       } else if (aggregationType.value === ConnectionHistoryType.Destination) {
         return row.original.key
       } else if (aggregationType.value === ConnectionHistoryType.Process) {

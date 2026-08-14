@@ -4,7 +4,7 @@
       class="text-md truncate"
       :class="proxyGroup.icon && 'pr-10'"
     >
-      {{ proxyGroup.name }}
+      {{ displayName }}
     </div>
     <div
       class="text-base-content/40 flex min-w-0 items-center gap-2 truncate text-[11px]"
@@ -29,6 +29,7 @@
         />
         <ProxyGroupNow
           :name="proxyGroup.name"
+          :lan-device="lanDevice"
           :mobile="true"
         />
       </div>
@@ -59,6 +60,7 @@
 <script setup lang="ts">
 import { KEYBOARD_SHORTCUT_ACTION, useKeyboardShortcuts } from '@/composables/keyboard'
 import { isHiddenGroup } from '@/helper'
+import { getLanDeviceFromScopedProxyName, getLanDeviceScopedProxyName } from '@/helper/lanDevice'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { useTooltip } from '@/helper/tooltip'
 import { prettyBytesHelper } from '@/helper/utils'
@@ -89,6 +91,8 @@ const { t } = useI18n()
 const { getShortcutKey } = useKeyboardShortcuts()
 const { showTip } = useTooltip()
 const proxyGroup = computed(() => proxyMap.value[props.name])
+const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.name))
+const displayName = computed(() => getLanDeviceScopedProxyName(props.name, lanDevice.value))
 
 const downloadTotal = computed(() => {
   return activeConnections.value

@@ -3,12 +3,14 @@
 // 并按后端类型路由到 clash(拉取式)/ singbox(流驱动)的组装实现。
 import { can, Channel, channel } from '@/assembly/backend'
 import { NOT_CONNECTED, PROXY_TAB_TYPE, PROXY_TYPE, TEST_URL } from '@/constant'
+import { LAN_DEVICE_STORAGE_KEYS } from '@/helper/lanDevice'
 import { groupTestUrls, independentLatencyTest, speedtestUrl } from '@/store/settings'
 import type { Proxy, ProxyProvider } from '@/types'
 import { useStorage } from '@vueuse/core'
 import { last } from 'lodash'
 import { computed, ref } from 'vue'
 
+export const proxiesDevice = useStorage<string>(LAN_DEVICE_STORAGE_KEYS.proxies, '')
 export const proxiesFilter = ref('')
 export const proxiesTabShow = ref(PROXY_TAB_TYPE.PROXIES)
 

@@ -90,8 +90,8 @@ const props = defineProps<{
   name: string
 }>()
 
-const proxyProvider = computed(
-  () => proxyProviederList.value.find((group) => group.name === props.name)!,
+const proxyProvider = computed(() =>
+  proxyProviederList.value.find((group) => group.name === props.name)!,
 )
 const allProxies = computed(() => proxyProvider.value.proxies.map((node) => node.name) ?? [])
 const { renderProxies, proxiesCount } = useRenderProxyList(allProxies)

@@ -19,10 +19,11 @@
         <template v-else>
           <div class="base-container">
             <RuleCard
-              v-for="rule in renderRules"
-              :key="rule.payload"
+              v-for="(rule, index) in renderRules"
+              :key="`${rule.index}-${rule.proxy}-${rule.payload}`"
               :rule="rule"
-              :index="rules.indexOf(rule) + 1"
+              :index="getDisplayNumber(rule, index)"
+              :read-only="rule.readOnly"
             />
           </div>
         </template>
@@ -36,11 +37,12 @@
       <template v-slot:before>
         <RulesCtrl />
       </template>
-      <template v-slot="{ item: rule }: { item: Rule }">
+      <template v-slot="{ item: rule, index }: { item: Rule; index: number }">
         <RuleCard
-          :key="rule.payload"
+          :key="`${rule.index}-${rule.proxy}-${rule.payload}`"
           :rule="rule"
-          :index="rules.indexOf(rule) + 1"
+          :index="getDisplayNumber(rule, index)"
+          :read-only="rule.readOnly"
         />
       </template>
     </VirtualScroller>
@@ -55,6 +57,7 @@ import RuleProvider from '@/components/rules/RuleProvider.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import { RULE_TAB_TYPE } from '@/constant'
 import { fetchRules, renderRules, renderRulesProvider, rules, rulesTabShow } from '@/assembly/rules'
+import { getRuleDisplayNumber } from '@/helper/ruleView'
 import type { Rule } from '@/types'
 import { computed, provide, ref } from 'vue'
 
@@ -62,6 +65,9 @@ fetchRules()
 
 const expandedRule = ref<string | null>(null)
 provide('expandedRule', expandedRule)
+
+const getDisplayNumber = (rule: Rule, visibleIndex: number) =>
+  getRuleDisplayNumber(rule, visibleIndex, rules.value)
 
 const { padding } = usePaddingForViews({
   offsetTop: 12,

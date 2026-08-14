@@ -8,7 +8,17 @@ import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import SingBoxLogo from '@/assets/images/sing-box.svg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
-import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store/settings'
+import { createGenerationGuard } from '@/helper/generationGuard'
+import {
+  FORK_UI_COMPARE_API_URL,
+  FORK_UI_RELEASE_API_URL,
+  getForkUIReleaseCommit,
+  isForkUIUpdateAvailable,
+  isSameCommit,
+  type ForkUIRelease,
+  type GitHubComparisonStatus,
+} from '@/helper/uiUpdate'
+import { autoUpgradeCore, checkUpgradeCore } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
 import { computed, nextTick, ref, watch } from 'vue'
@@ -61,18 +71,33 @@ export const mihomo = computed<[MIHOMO, string] | undefined>(() => {
   }
 })
 
-const fetchSingboxVersion = async () => {
-  const { getSingboxClient } = await import('@/api/singbox/client')
-  const client = getSingboxClient()?.client
-  if (!client) return { data: { version: 'sing-box' } }
-  const v = await client.getVersion({})
-  apiVersion.value = v.apiVersion
-  const version = v.version.includes('sing-box') ? v.version : `sing-box ${v.version}`
-  return { data: { version } }
+interface RuntimeVersion {
+  version: string
+  apiVersion: number
 }
 
-export const fetchVersionAPI = () =>
-  channel.value === Channel.Singbox ? fetchSingboxVersion() : fetchClashVersion()
+const fetchSingboxVersion = async (): Promise<RuntimeVersion> => {
+  const { getSingboxClient } = await import('@/api/singbox/client')
+  const client = getSingboxClient()?.client
+  if (!client) return { version: 'sing-box', apiVersion: 0 }
+  const v = await client.getVersion({})
+  const version = v.version.includes('sing-box') ? v.version : `sing-box ${v.version}`
+  return { version, apiVersion: v.apiVersion }
+}
+
+const fetchRuntimeVersion = async (singboxBackend: boolean): Promise<RuntimeVersion> => {
+  if (singboxBackend) return fetchSingboxVersion()
+
+  const { data } = await fetchClashVersion()
+  return { version: data.version, apiVersion: 0 }
+}
+
+export const fetchVersionAPI = async () => {
+  const runtime = await fetchRuntimeVersion(channel.value === Channel.Singbox)
+
+  apiVersion.value = runtime.apiVersion
+  return { data: { version: runtime.version } }
+}
 
 const fetchSingboxStartedAt = async (): Promise<number> => {
   const { getSingboxClient } = await import('@/api/singbox/client')
@@ -86,28 +111,58 @@ const fetchSingboxStartedAt = async (): Promise<number> => {
   }
 }
 
-const probeBackend = async (backend: Backend) => {
-  const { data } = await fetchVersionAPI()
+const versionRequestGuard = createGenerationGuard()
 
-  // 探测期间用户可能又切了后端,过期结果直接丢弃。
-  if (activeBackend.value?.uuid !== backend.uuid) return
-
-  version.value = data?.version || ''
-  core.value = detectCore(version.value)
-  startedAt.value = can('startedAt') ? await fetchSingboxStartedAt() : 0
-
-  if (!can('coreUpdateCheck') || !checkUpgradeCore.value || backend.disableUpgradeCore) return
-
-  isCoreUpdateAvailable.value = await fetchBackendUpdateAvailableAPI()
-
-  if (isCoreUpdateAvailable.value && autoUpgradeCore.value) {
-    upgradeCoreAPI('auto')
-  }
+const resetVersionState = () => {
+  resetCore()
+  version.value = ''
+  startedAt.value = 0
+  isCoreUpdateAvailable.value = false
 }
 
 // 当前后端的内核探测。core 未就绪前依赖它的判断都不可信,
 // 需要等结论的调用方(如登录后的设置同步)用 coreReady() 等待。
 let probe: Promise<void> = Promise.resolve()
+
+const probeBackend = async (backend: Backend, generation: number) => {
+  const isCurrentRequest = () =>
+    versionRequestGuard.isCurrent(generation) && activeBackend.value?.uuid === backend.uuid
+
+  try {
+    const runtime = await fetchRuntimeVersion(backend.type === 'singbox')
+    if (!isCurrentRequest()) return
+
+    version.value = runtime.version
+    core.value = detectCore(runtime.version)
+    apiVersion.value = runtime.apiVersion
+
+    const backendStartedAt = can('startedAt') ? await fetchSingboxStartedAt() : 0
+    if (!isCurrentRequest()) return
+
+    startedAt.value = backendStartedAt
+    if (!can('coreUpdateCheck') || !checkUpgradeCore.value || backend.disableUpgradeCore) return
+
+    const updateAvailable = await fetchBackendUpdateAvailableAPI().catch((error) => {
+      // Update-check failures must not discard a successful backend probe.
+      // 更新检查失败不得抹掉已成功探测的后端状态。
+      if (isCurrentRequest()) console.warn('Failed to check backend update', error)
+      return false
+    })
+    if (!isCurrentRequest()) return
+
+    isCoreUpdateAvailable.value = updateAvailable
+    if (updateAvailable && autoUpgradeCore.value) {
+      // 升级前再次确认后端，绝不让旧请求升级新后端。
+      // Recheck before upgrade so a stale request never upgrades a new backend.
+      if (isCurrentRequest()) void upgradeCoreAPI('auto')
+    }
+  } catch (error) {
+    if (!isCurrentRequest()) return
+
+    resetVersionState()
+    console.warn('Failed to fetch backend version', error)
+  }
+}
 
 export const coreReady = async () => {
   // 先让 activeBackend 的 watcher 跑完,确保拿到的是新后端的探测,而非上一次的残留。
@@ -118,12 +173,9 @@ export const coreReady = async () => {
 watch(
   activeBackend,
   (val) => {
-    resetCore()
-    version.value = ''
-    startedAt.value = 0
-    isCoreUpdateAvailable.value = false
-
-    probe = val ? probeBackend(val).catch(() => {}) : Promise.resolve()
+    const generation = versionRequestGuard.next()
+    resetVersionState()
+    probe = val ? probeBackend(val, generation) : Promise.resolve()
   },
   { immediate: true },
 )
@@ -172,12 +224,21 @@ async function fetchWithLocalCache<T>(url: string, version: string): Promise<T> 
 }
 
 export const fetchIsUIUpdateAvailable = async () => {
-  const { tag_name } = await fetchWithLocalCache<{ tag_name: string }>(
-    'https://api.github.com/repos/Zephyruso/zashboard/releases/latest',
-    zashboardVersion.value,
+  const release = await fetchWithLocalCache<ForkUIRelease>(
+    FORK_UI_RELEASE_API_URL,
+    `${zashboardVersion.value}/${__COMMIT_ID__ || 'no-commit'}`,
   )
+  const releaseCommit = getForkUIReleaseCommit(release)
+  let comparisonStatus: GitHubComparisonStatus | undefined
+  if (__COMMIT_ID__ && releaseCommit && !isSameCommit(__COMMIT_ID__, releaseCommit)) {
+    const comparison = await fetchWithLocalCache<{ status: GitHubComparisonStatus }>(
+      `${FORK_UI_COMPARE_API_URL}/${encodeURIComponent(__COMMIT_ID__)}...${encodeURIComponent(releaseCommit)}`,
+      `${__COMMIT_ID__}/${releaseCommit}`,
+    )
+    comparisonStatus = comparison.status
+  }
 
-  return Boolean(tag_name && tag_name !== `v${zashboardVersion.value}`)
+  return isForkUIUpdateAvailable(release, __COMMIT_ID__, zashboardVersion.value, comparisonStatus)
 }
 
 const check = async (url: string, versionNumber: string) => {
@@ -199,9 +260,6 @@ export const isUIUpdateAvailable = ref(false)
 
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
-  if (isUIUpdateAvailable.value && autoUpgradeDashboard.value) {
-    upgradeUIAPI()
-  }
 }
 
 // 内核 / UI 维护动作(Clash 专属,无后端分支),经版本域门面暴露给 view。

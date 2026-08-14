@@ -1,9 +1,11 @@
 import {
   fetchRules,
+  lanRulesDevices,
   ruleProviderList,
-  rules,
+  rulesDevice,
   rulesFilter,
   rulesTabShow,
+  scopedRules,
   updateRuleProviderAPI,
 } from '@/assembly/rules'
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
@@ -70,7 +72,8 @@ export default defineComponent({
       return Object.values(RULE_TAB_TYPE).map((type) => {
         return {
           type,
-          count: type === RULE_TAB_TYPE.RULES ? rules.value.length : ruleProviderList.value.length,
+          count:
+            type === RULE_TAB_TYPE.RULES ? scopedRules.value.length : ruleProviderList.value.length,
         }
       })
     })
@@ -104,6 +107,27 @@ export default defineComponent({
           clearable={true}
         />
       )
+      const lanDeviceSelect =
+        rulesTabShow.value === RULE_TAB_TYPE.RULES && lanRulesDevices.value.length ? (
+          <select
+            class="select select-sm bg-base-200/60 border-base-300 h-9 min-h-9 w-32 max-w-40"
+            title="LAN device rules"
+            value={rulesDevice.value}
+            onChange={(event) => {
+              rulesDevice.value = (event.target as HTMLSelectElement).value
+            }}
+          >
+            <option value="">{t('default')}</option>
+            {lanRulesDevices.value.map((device) => (
+              <option
+                key={device.name}
+                value={device.name}
+              >
+                {device.name}
+              </option>
+            ))}
+          </select>
+        ) : null
 
       const settingsModal = (
         <>
@@ -158,6 +182,7 @@ export default defineComponent({
             </div>
           )}
           <div class="flex w-full items-center gap-2">
+            {lanDeviceSelect}
             {searchInput}
             {settingsModal}
           </div>
@@ -165,6 +190,7 @@ export default defineComponent({
       ) : (
         <div class="flex flex-wrap items-center gap-2 p-2">
           {hasProviders.value && tabs}
+          {lanDeviceSelect}
           {searchInput}
           <div class="flex-1"></div>
           {upgradeAllIcon}

@@ -8,6 +8,7 @@
       />
       <ProxyName
         :name="proxyGroup.now"
+        :lan-device="lanDevice"
         :class="
           isNowAGroup && 'hover:bg-base-300 hover:-mx-1 hover:rounded-lg hover:px-1 hover:shadow'
         "
@@ -18,7 +19,8 @@
         <ArrowRightCircleIcon class="text-base-content/40 h-3.5 w-3.5 shrink-0" />
         <ProxyName
           :name="finalOutbound"
-          class="text-base-content text-xs md:text-sm"
+          :lan-device="lanDevice"
+          class="text-base-content text-xs font-medium md:text-sm"
         />
       </template>
     </template>
@@ -45,6 +47,7 @@ import ProxyName from './ProxyName.vue'
 const props = defineProps<{
   name: string
   mobile?: boolean
+  lanDevice?: string
 }>()
 const proxyGroup = computed(() => proxyMap.value[props.name])
 const { showTip } = useTooltip()

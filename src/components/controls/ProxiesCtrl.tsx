@@ -5,6 +5,7 @@ import {
   allProxiesLatencyTest,
   fetchProxies,
   hasSmartGroup,
+  proxiesDevice,
   proxiesFilter,
   proxiesTabShow,
   proxyGroupList,
@@ -15,6 +16,7 @@ import { renderProxiesPageItems } from '@/composables/proxies'
 import { isProxyNodeSearchMode, toggleProxySearchMode } from '@/composables/proxySearch'
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { PROXY_SORT_TYPE, PROXY_TAB_TYPE, ROUTE_NAME, SETTINGS_MENU_KEY } from '@/constant'
+import { getValidLanDevice, sortLanDeviceNames } from '@/helper/lanDevice'
 import { getMinCardWidth } from '@/helper/utils'
 import { activeConnections } from '@/store/connections'
 import { isProxyFolderModeActive } from '@/store/proxyFolders'
@@ -42,13 +44,15 @@ import {
   WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
 import { every } from 'lodash'
-import { computed, defineComponent, ref } from 'vue'
+import { computed, defineComponent, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import CtrlsBar from '../common/CtrlsBar.vue'
 import DialogWrapper from '../common/DialogWrapper.vue'
 import SegmentedControl from '../common/SegmentedControl.vue'
 import TextInput from '../common/TextInput.vue'
+
+const LAN_GROUP_PREFIX = 'lan/'
 
 export default defineComponent({
   name: 'ProxiesCtrl',
@@ -80,6 +84,36 @@ export default defineComponent({
 
     const foldersUiVisible = computed(
       () => isProxyFolderModeActive.value && proxiesTabShow.value === PROXY_TAB_TYPE.PROXIES,
+    )
+
+    const lanDevices = computed(() => {
+      const devices = new Set<string>()
+      for (const name of proxyGroupList.value) {
+        if (!name.startsWith(LAN_GROUP_PREFIX)) continue
+        const device = name.slice(LAN_GROUP_PREFIX.length).split('/')[0]
+        if (device) devices.add(device)
+      }
+      return sortLanDeviceNames(Array.from(devices))
+    })
+
+    const selectedLanDevice = computed(() =>
+      getValidLanDevice(proxiesDevice.value, lanDevices.value),
+    )
+
+    const handlerLanDeviceChange = (event: Event) => {
+      const device = (event.target as HTMLSelectElement).value
+      proxiesDevice.value = device
+    }
+
+    watch(
+      proxyGroupList,
+      (groups) => {
+        if (!groups.length || !proxiesDevice.value) return
+        if (getValidLanDevice(proxiesDevice.value, lanDevices.value)) return
+
+        proxiesDevice.value = ''
+      },
+      { immediate: true },
     )
 
     const defaultModes = ['direct', 'rule', 'global']
@@ -252,6 +286,26 @@ export default defineComponent({
         </div>
       )
 
+      const lanDeviceSelect =
+        proxiesTabShow.value === PROXY_TAB_TYPE.PROXIES && lanDevices.value.length ? (
+          <select
+            class="select select-sm bg-base-200/60 border-base-300 h-9 min-h-9 w-32 max-w-40"
+            title="LAN device groups"
+            value={selectedLanDevice.value}
+            onChange={handlerLanDeviceChange}
+          >
+            <option value="">{t('default')}</option>
+            {lanDevices.value.map((device) => (
+              <option
+                key={device}
+                value={device}
+              >
+                {device}
+              </option>
+            ))}
+          </select>
+        ) : null
+
       const settingsModal = (
         <>
           <button
@@ -373,6 +427,7 @@ export default defineComponent({
           )}
           <div class="flex w-full gap-2">
             {modeSelect}
+            {lanDeviceSelect}
             {searchInput}
             {settingsModal}
             {toggleCollapseAll}
@@ -383,6 +438,7 @@ export default defineComponent({
         <div class="flex gap-2 p-2">
           {hasProviders.value && tabs}
           {modeSelect}
+          {lanDeviceSelect}
           <div class="flex flex-1">{searchInput}</div>
           {upgradeAllIcon}
           {settingsModal}

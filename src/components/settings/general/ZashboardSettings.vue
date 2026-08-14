@@ -10,7 +10,7 @@
           <span class="bg-secondary h-2 w-2 rounded-full"></span>
         </span>
         <a
-          href="https://github.com/Zephyruso/zashboard"
+          href="https://github.com/whoerau/zashboard/tree/feat/lan-device-filter"
           target="_blank"
           class="text-lg font-semibold"
         >
@@ -38,5 +38,5 @@ import { isUIUpdateAvailable, zashboardVersion } from '@/assembly/version'
 import GeneralSettings from './GeneralSettings.vue'
 import StyleSettings from './StyleSettings.vue'
 
-const commitId = __COMMIT_ID__
+const commitId = __COMMIT_ID__.slice(0, 7)
 </script>

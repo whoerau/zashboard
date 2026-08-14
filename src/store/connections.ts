@@ -17,6 +17,7 @@ import {
   getNetworkTypeFromConnection,
 } from '@/helper'
 import { toSearchRegex } from '@/helper/search'
+import { createSourceIPFilterMatcher } from '@/helper/sourceIPFilter'
 import type { Connection } from '@/types'
 import { useStorage, watchOnce } from '@vueuse/core'
 import dayjs from 'dayjs'
@@ -165,7 +166,7 @@ export const isClosedConnection = (connection: Connection) =>
 export const renderConnections = computed(() => {
   const searchRegex = toSearchRegex(connectionFilter.value)
   const hideRegex = quickFilterEnabled.value ? toSearchRegex(quickFilterRegex.value) : null
-  const sourceIPs = sourceIPFilter.value
+  const matchesSourceIP = createSourceIPFilterMatcher(sourceIPFilter.value)
   // 无正则过滤时跳过搜索串构建:那是每拍每连接十余次字符串/dayjs 分配的大头
   const needSearchValues = Boolean(searchRegex || hideRegex)
   const displayOptions = {
@@ -178,7 +179,7 @@ export const renderConnections = computed(() => {
     : connectionTableColumns.value
 
   const filtered = connections.value.filter((conn) => {
-    if (sourceIPs !== null && sourceIPs.every((i) => i !== getConnectionSourceIP(conn))) {
+    if (!matchesSourceIP(getConnectionSourceIP(conn))) {
       return false
     }
 

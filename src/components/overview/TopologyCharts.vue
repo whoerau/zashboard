@@ -71,11 +71,14 @@
 </template>
 
 <script setup lang="ts">
+import { rules } from '@/assembly/rules'
 import { escapeChartHtml } from '@/components/charts/chartTooltip'
 import { useChartTheme, useEChart, type EChartOption } from '@/composables/useEChart'
 import { getConnectionChains, getConnectionRule, getConnectionSourceIP } from '@/helper'
 import { backgroundImage } from '@/helper/indexeddb'
+import { createLanDeviceResolver, getLanDeviceDisplayName } from '@/helper/lanDevice'
 import { getIPLabelFromMap } from '@/helper/sourceip'
+import { shouldRenderTopologySource } from '@/helper/topology'
 import { isMiddleScreen } from '@/helper/utils'
 import { activeConnections } from '@/store/connections'
 import { blurIntensity, dashboardTransparent } from '@/store/settings'
@@ -128,13 +131,21 @@ const chartSurfaceStyle = computed<CSSProperties>(() => {
   }
 })
 
+const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
 const topologyData = computed(() =>
   buildTopologyData(
-    activeConnections.value.map((connection) => ({
-      source: getIPLabelFromMap(getConnectionSourceIP(connection)),
-      rule: getConnectionRule(connection),
-      chains: getConnectionChains(connection),
-    })),
+    activeConnections.value.flatMap((connection) => {
+      const source = getConnectionSourceIP(connection)
+      if (!shouldRenderTopologySource(source)) return []
+
+      return [
+        {
+          source: getLanDeviceDisplayName(source, resolveLanDevice.value, getIPLabelFromMap),
+          rule: getConnectionRule(connection),
+          chains: getConnectionChains(connection),
+        },
+      ]
+    }),
     {
       sourceIPAddress: t('sourceIPAddress'),
       ruleMatch: t('ruleMatch'),

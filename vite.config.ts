@@ -14,7 +14,7 @@ const getGitCommitId = (): string => {
       return ''
     }
 
-    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim()
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
   } catch (error) {
     console.warn('无法获取git commit ID:', error)
     return ''

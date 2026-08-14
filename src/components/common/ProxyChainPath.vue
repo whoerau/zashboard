@@ -10,6 +10,7 @@
           <ProxyName
             :name="proxy"
             :filter="filter"
+            :lan-device="lanDevice"
           />
         </span>
         <template v-if="proxyNode?.now && showNowNode">
@@ -18,6 +19,7 @@
             <ProxyName
               :name="getNowProxyNodeName(proxy)"
               :filter="filter"
+              :lan-device="lanDevice"
             />
           </span>
         </template>
@@ -41,6 +43,7 @@
             <ProxyName
               :name="chain"
               :filter="filter"
+              :lan-device="lanDevice"
             />
           </span>
         </template>
@@ -59,6 +62,7 @@
             <ProxyName
               :name="getNowProxyNodeName(proxy)"
               :filter="filter"
+              :lan-device="lanDevice"
             />
           </span>
         </template>
@@ -97,6 +101,7 @@ const props = withDefaults(
     showLatency?: boolean
     interactive?: boolean
     filter?: string
+    lanDevice?: string
   }>(),
   {
     selected: '',
@@ -105,6 +110,7 @@ const props = withDefaults(
     showLatency: false,
     interactive: true,
     filter: '',
+    lanDevice: '',
   },
 )
 

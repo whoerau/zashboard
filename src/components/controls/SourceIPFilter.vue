@@ -15,8 +15,12 @@
 </template>
 
 <script setup lang="ts">
-import { getIPLabelFromMap } from '@/helper/sourceip'
+import { lanDeviceResolver } from '@/assembly/rules'
 import { getConnectionSourceIP } from '@/helper'
+import { buildSourceIPOptions } from '@/helper/sourceIPFilter'
+import { getIPLabelFromMap } from '@/helper/sourceip'
+import { sourceIPLabelList } from '@/store/settings'
+import { activeBackend } from '@/store/setup'
 import { connections, sourceIPFilter } from '@/store/connections'
 import * as ipaddr from 'ipaddr.js'
 import { isEqual, uniq } from 'lodash'
@@ -48,30 +52,25 @@ const sourceIPs = computed(() => {
   })
 })
 const sourceIPOpts = ref<{ label: string; value: string[] }[]>([])
-
+const manualSourceIPLabels = computed(() =>
+  sourceIPLabelList.value.map(({ key, label, scope }) => ({ key, label, scope })),
+)
 // do not use computed here for firefox
 watch(
-  sourceIPs,
-  (value, oldValue) => {
-    if (isEqual(value, oldValue)) return
-    const options: { label: string; value: string[] }[] = []
-
-    value.forEach((ip) => {
-      const label = getIPLabelFromMap(ip)
-      const index = options.findIndex((opt) => opt.label === label)
-
-      if (index === -1) {
-        options.push({
-          label,
-          value: [ip],
-        })
-      } else {
-        options[index].value.push(ip)
-      }
+  [sourceIPs, lanDeviceResolver, manualSourceIPLabels, activeBackend],
+  ([value]) => {
+    const options = buildSourceIPOptions({
+      sourceIPs: value,
+      sourceIPLabels: manualSourceIPLabels.value,
+      activeBackendID: activeBackend.value?.uuid,
+      resolveLanDevice: lanDeviceResolver.value,
+      resolveSourceIPLabel: getIPLabelFromMap,
     })
 
     if (sourceIPFilter.value !== null) {
-      const currentLabel = getIPLabelFromMap(sourceIPFilter.value[0])
+      const currentIP = sourceIPFilter.value[0]
+      const currentDevice = lanDeviceResolver.value(currentIP)
+      const currentLabel = currentDevice ?? getIPLabelFromMap(currentIP)
       const current = options.find((opt) => opt.label === currentLabel)
 
       if (!current) {

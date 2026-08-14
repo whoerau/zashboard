@@ -23,17 +23,17 @@
         :key="f.id"
         :id="f.id"
         :label="displayFolderName(f.name)"
-        :count="folderCount(f.id)"
+        :count="scopedFolderCount(f.id)"
         :is-active="activeFolderId === f.id"
         orientation="horizontal"
         icon="folder"
         @activate="activeFolderId = f.id"
       />
       <FolderItem
-        v-if="folderCount(VIRTUAL_UNCAT) > 0"
+        v-if="scopedFolderCount(VIRTUAL_UNCAT) > 0"
         :id="VIRTUAL_UNCAT"
         :label="$t('folder_uncategorized')"
-        :count="folderCount(VIRTUAL_UNCAT)"
+        :count="scopedFolderCount(VIRTUAL_UNCAT)"
         :is-active="activeFolderId === VIRTUAL_UNCAT"
         orientation="horizontal"
         icon="uncategorized"
@@ -53,23 +53,26 @@
 <script setup lang="ts">
 import { ctrlsBottom } from '@/composables/paddingViews'
 import { disableSwipe } from '@/composables/swipe'
-import { proxyGroupList } from '@/assembly/proxies'
+import { filteredProxyGroups } from '@/composables/proxies'
 import {
   activeFolderId,
-  folderCount,
   folderManagerOpen,
   folders,
+  groupsByFolder,
   VIRTUAL_ALL,
   VIRTUAL_UNCAT,
 } from '@/store/proxyFolders'
 import { Cog6ToothIcon } from '@heroicons/vue/24/outline'
+import { intersection } from 'lodash'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import FolderItem from './FolderItem.vue'
 import { displayFolderName } from './folderName'
 import { isMiddleScreen } from '@/helper/utils.ts'
 
 const foldersSorted = computed(() => [...folders.value].sort((a, b) => a.order - b.order))
-const totalCount = computed(() => proxyGroupList.value.length)
+const totalCount = computed(() => filteredProxyGroups.value.length)
+const scopedFolderCount = (id: string) =>
+  intersection(groupsByFolder.value.get(id) ?? [], filteredProxyGroups.value).length
 
 const topBarRef = ref<HTMLElement | null>(null)
 const isStuck = ref(false)

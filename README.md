@@ -28,6 +28,7 @@ You can download the zashboard files here:
 
 release:
 
+- [LAN-device fork latest dist.zip](https://github.com/whoerau/zashboard/releases/latest/download/dist.zip) – No-fonts build promoted only after its immutable release is complete.
 - [dist.zip (7.81 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip) – Includes better font-loading experience.
 - [dist-no-fonts.zip (1.44 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-no-fonts.zip) – No fonts included, uses system fonts only.
 - [dist-cdn-fonts.zip (1.44 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip) – Fonts loaded from unpkg.com, If you have trouble connecting to unpkg.com, **you may experience slow page loading**.
@@ -60,7 +61,7 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. Right-clicking on a node / node group card will perform a speedtest for the node / node group.
 3. The proxy group sorting is based on the node order in the GLOBAL group. In Mihomo, it follows the configuration file order, while in sing-box, route.final is placed first, with the rest following the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
 4. The dashboard supports PWA (Progressive Web App), which can provide a native app-like experience on mobile devices through "Add to Home Screen".
-5. The dashboard's upgrade button and auto-upgrade functionality require proper configuration of the core's UI download path ([mihomo](https://wiki.metacubex.one/config/general/#_9) | [sing-box](https://sing-box.sagernet.org/configuration/experimental/clash-api/#external_ui_download_url)), otherwise clicking update may result in updating to the core's default panel.
+5. Mihomo's `/upgrade/ui` uses a core-configured URL that `/configs` cannot verify. This fork therefore hides the in-dashboard upgrade action. Install updates through the managed deployment workflow, or download `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip` explicitly.
 
 ## 提示
 
@@ -68,7 +69,13 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. 右键点击节点/节点组卡片可对节点/节点组进行测速。
 3. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，在Mihomo中会是按配置文件的顺序，在sing-box中会把route.final放到第一位，其余按照配置文件顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
 4. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
-5. 面板的更新按钮和自动更新功能需要正确的配置核心的ui下载路径 ([mihomo](https://wiki.metacubex.one/config/general/#_9) | [sing-box](https://sing-box.sagernet.org/configuration/experimental/clash-api/#external_ui_download_url)), 否则可能会在点击更新后更新为核心默认面板
+5. Mihomo 的 `/upgrade/ui` 使用核心预设 URL，而 `/configs` 无法校验该地址。此 fork 因而隐藏面板内升级按钮；请使用受管部署流程，或显式下载 `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip` 更新。
+
+## LAN rules sidecar
+
+Rules device scoping requires a configuration-specific `lan-rules.json` beside `index.html`. It is intentionally not bundled in `dist.zip`: a generic release cannot safely contain one gateway's device mapping. `whoerctl mihomo gateway` generates schema version 2 automatically without device CIDRs or raw rule payloads. The browser accepts it only when the active backend has the same origin as the UI and its live rule count, digest, sub-rules, source indexes, and original policies all match. A missing, stale, or invalid sidecar leaves normal Rules visible and preserves the saved device choice without applying an unsafe mapping.
+
+规则设备作用域依赖与 `index.html` 同目录、按网关配置生成的 `lan-rules.json`。通用 `dist.zip` 不会打包某台网关的设备映射；`whoerctl mihomo gateway` 会自动生成不含设备 CIDR 和原始规则 payload 的 v2 清单。浏览器仅在当前后端与 UI 同源，且实时规则数量、摘要、子规则、索引及原策略全部匹配时采用它。清单缺失、过期或无效时仍显示普通规则，并保留已保存设备选择，但不会套用不安全映射。
 
 ## URL params format
 
