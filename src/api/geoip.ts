@@ -24,7 +24,8 @@ export interface IPInfo {
 
 // china
 export const getIPFromIpipnetAPI = async () => {
-  const response = await fetch('https://myip.ipip.net/json?t=' + Date.now())
+  // Cache-busting query parameters make ipip.net's uncached response omit its CORS header.
+  const response = await fetch('https://myip.ipip.net/json', { cache: 'no-store' })
 
   return (await response.json()) as {
     data: {
@@ -36,9 +37,9 @@ export const getIPFromIpipnetAPI = async () => {
 
 // global
 export const getIPFromIpsbAPI = async (ip = '') => {
-  const response = await fetch(
-    'https://api.ip.sb/geoip' + (ip ? `/${ip}` : '') + '?t=' + Date.now(),
-  )
+  const response = await fetch('https://api.ip.sb/geoip' + (ip ? `/${ip}` : ''), {
+    cache: 'no-store',
+  })
 
   return (await response.json()) as {
     organization: string
@@ -61,7 +62,9 @@ export const getIPFromIpsbAPI = async (ip = '') => {
 }
 
 const getIPFromIPWhoisAPI = async (ip = '') => {
-  const response = await fetch('https://ipwho.is' + (ip ? `/${ip}` : '') + '?t=' + Date.now())
+  const response = await fetch('https://ipwho.is' + (ip ? `/${ip}` : ''), {
+    cache: 'no-store',
+  })
 
   return (await response.json()) as {
     ip: string
@@ -104,77 +107,17 @@ const getIPFromIPWhoisAPI = async (ip = '') => {
 }
 
 const getIPFromIPapiisAPI = async (ip = '') => {
-  const response = await fetch(
-    'https://api.ipapi.is' + (ip ? `/?q=${ip}` : '') + (ip ? '&' : '?') + 't=' + Date.now(),
-  )
+  const response = await fetch('https://api.ipapi.is' + (ip ? `/?q=${ip}` : ''), {
+    cache: 'no-store',
+  })
 
+  // Anonymous requests use ipapi.is's minimal, flat response schema.
   return (await response.json()) as {
     ip: string
-    rir: string
-    is_bogon: boolean
-    is_mobile: boolean
-    is_satellite: boolean
-    is_crawler: boolean
-    is_datacenter: boolean
-    is_tor: boolean
-    is_proxy: boolean
-    is_vpn: boolean
-    is_abuser: boolean
-    datacenter: {
-      datacenter: string
-      network: string
-      region: string
-      service: string
-      network_border_group: string
-    }
-    company: {
-      name: string
-      abuser_score: string
-      domain: string
-      type: string
-      network: string
-      whois: string
-    }
-    abuse: {
-      name: string
-      address: string
-      email: string
-      phone: string
-    }
-    asn: {
-      asn: number
-      abuser_score: string
-      route: string
-      descr: string
-      country: string
-      active: boolean
-      org: string
-      domain: string
-      abuse: string
-      type: string
-      created: string
-      updated: string
-      rir: string
-      whois: string
-    }
-    location: {
-      is_eu_member: boolean
-      calling_code: string
-      currency_code: string
-      continent: string
-      country: string
-      country_code: string
-      state: string
-      city: string
-      latitude: number
-      longitude: number
-      zip: string
-      timezone: string
-      local_time: string
-      local_time_unix: number
-      is_dst: boolean
-    }
-    elapsed_ms: number
+    company_name: string | null
+    asn_num: number | null
+    asn_org: string | null
+    cc: string | null
   }
 }
 
@@ -185,11 +128,11 @@ export const getIPInfo = async (ip = ''): Promise<IPInfo> => {
 
       return {
         ip: ipapi.ip,
-        country: ipapi.location.country,
-        region: ipapi.location.state,
-        city: ipapi.location.city,
-        asn: ipapi.asn.asn?.toString(),
-        organization: ipapi.asn.org,
+        country: ipapi.cc ?? '',
+        region: '',
+        city: '',
+        asn: ipapi.asn_num?.toString() ?? '',
+        organization: ipapi.asn_org ?? ipapi.company_name ?? '',
       }
     case IP_INFO_API.IPWHOIS:
       const ipwhois = await getIPFromIPWhoisAPI(ip)

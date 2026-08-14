@@ -109,7 +109,7 @@ export const renderRules = computed(() => {
 
 export const renderRulesProvider = computed(() => {
   const searchRegex = toSearchRegex(rulesFilter.value)
-  if (!searchRegex) return ruleProviderList.value
+  if (!searchRegex) return [...ruleProviderList.value]
 
   return ruleProviderList.value.filter((provider) =>
     searchRegex.testAny([provider.name, provider.behavior, provider.vehicleType]),

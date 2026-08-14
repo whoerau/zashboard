@@ -1,6 +1,6 @@
 import { can } from '@/assembly/backend'
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
-import { LOG_LEVEL } from '@/constant'
+import { LIST_DISPLAY_STYLE, LOG_LEVEL } from '@/constant'
 import { useTooltip } from '@/helper/tooltip'
 import {
   initLogs,
@@ -13,7 +13,7 @@ import {
   logs,
   supportedLogLevels,
 } from '@/store/logs'
-import { logRetentionLimit, logSearchHistory } from '@/store/settings'
+import { logDisplayStyle, logRetentionLimit, logSearchHistory } from '@/store/settings'
 import {
   ArrowDownTrayIcon,
   LinkIcon,
@@ -204,6 +204,22 @@ export default defineComponent({
           >
             <div class="flex flex-col gap-3 text-sm">
               <div class="settings-grid">
+                <div class="setting-item">
+                  <div class="setting-item-label">{t('logStyle')}</div>
+                  <select
+                    class="select select-sm min-w-24"
+                    v-model={logDisplayStyle.value}
+                  >
+                    {Object.values(LIST_DISPLAY_STYLE).map((opt) => (
+                      <option
+                        key={opt}
+                        value={opt}
+                      >
+                        {t(opt)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div class="setting-item">
                   <div class="setting-item-label">{t('logRetentionLimit')}</div>
                   <input

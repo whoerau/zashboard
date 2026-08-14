@@ -163,7 +163,7 @@ const closedConnectionIds = computed(() => new Set(closedConnections.value.map((
 export const isClosedConnection = (connection: Connection) =>
   closedConnectionIds.value.has(connection.id)
 
-export const renderConnections = computed(() => {
+const filterConnections = (items: readonly Connection[]) => {
   const searchRegex = toSearchRegex(connectionFilter.value)
   const hideRegex = quickFilterEnabled.value ? toSearchRegex(quickFilterRegex.value) : null
   const matchesSourceIP = createSourceIPFilterMatcher(sourceIPFilter.value)
@@ -178,7 +178,7 @@ export const renderConnections = computed(() => {
     ? connectionCardLines.value.flat()
     : connectionTableColumns.value
 
-  const filtered = connections.value.filter((conn) => {
+  return items.filter((conn) => {
     if (!matchesSourceIP(getConnectionSourceIP(conn))) {
       return false
     }
@@ -199,6 +199,15 @@ export const renderConnections = computed(() => {
 
     return true
   })
+}
+
+// Overview visualizations only represent live traffic, but should still honor the same filters as
+// the connections view. Keep this separate from `renderConnections`, whose source depends on the
+// selected active/closed/all tab.
+export const filteredActiveConnections = computed(() => filterConnections(activeConnections.value))
+
+export const renderConnections = computed(() => {
+  const filtered = filterConnections(connections.value)
 
   const sortType = isConnectionCard.value ? connectionSortType.value : SORT_TYPE.HOST
   const getSortKey = sortKeyFunctionMap[sortType]

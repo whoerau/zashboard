@@ -109,9 +109,6 @@
     <div
       ref="parentRef"
       class="h-96 overflow-auto"
-      @touchstart.passive.stop
-      @touchmove.passive.stop
-      @touchend.passive.stop
     >
       <div :style="{ height: `${totalSize}px` }">
         <table class="table-sm table w-full rounded-none">

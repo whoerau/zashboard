@@ -4,7 +4,6 @@ import { Buffer } from 'buffer'
 import type { CityResponse, Reader as MMDBReader } from 'mmdb-lib'
 import {
   DBIP_CITY_URL,
-  DBIP_CITY_VERSION,
   DBIP_STORED_BYTES,
   type EarthLocation,
   type GeoDatabaseError,
@@ -20,12 +19,12 @@ if (!(globalThis as { Buffer?: unknown }).Buffer) {
 
 const DATABASE_NAME = 'zashboard-earth-geoip'
 const DATABASE_STORE = 'city-database'
-const DATABASE_KEY = `dbip-city-lite-${DBIP_CITY_VERSION}`
+const DATABASE_KEY = 'dbip-city-lite'
+const DATABASE_TTL = 30 * 24 * 60 * 60 * 1000
 const STORAGE_HEADROOM = 16 * 1024 * 1024
 
 interface CachedDatabase {
   blob: Blob
-  version: string
   storedAt: number
 }
 
@@ -57,12 +56,20 @@ const readCachedDatabase = async (): Promise<CachedDatabase | undefined> => {
   const database = await openDatabase()
 
   return new Promise<CachedDatabase | undefined>((resolve, reject) => {
+    // Reading all records also finds caches written by older builds whose key
+    // included the package version. The next refresh migrates to DATABASE_KEY.
     const request = database
       .transaction(DATABASE_STORE, 'readonly')
       .objectStore(DATABASE_STORE)
-      .get(DATABASE_KEY)
+      .getAll()
 
-    request.onsuccess = () => resolve(request.result as CachedDatabase | undefined)
+    request.onsuccess = () => {
+      const cached = (request.result as CachedDatabase[]).sort(
+        (left, right) => (right.storedAt || 0) - (left.storedAt || 0),
+      )[0]
+
+      resolve(cached)
+    }
     request.onerror = () => reject(request.error)
   }).finally(() => database.close())
 }
@@ -88,7 +95,7 @@ const deleteCachedDatabase = async () => {
   return new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(DATABASE_STORE, 'readwrite')
 
-    transaction.objectStore(DATABASE_STORE).delete(DATABASE_KEY)
+    transaction.objectStore(DATABASE_STORE).clear()
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error)
   }).finally(() => database.close())
@@ -112,7 +119,7 @@ const init = async () => {
   try {
     const cached = await readCachedDatabase()
 
-    if (!cached || cached.version !== DBIP_CITY_VERSION) {
+    if (!cached) {
       post({ type: 'status', status: 'idle' })
       return
     }
@@ -122,6 +129,10 @@ const init = async () => {
     try {
       reader = await createReader(cached.blob)
       post({ type: 'status', status: 'ready' })
+
+      if (!Number.isFinite(cached.storedAt) || Date.now() - cached.storedAt > DATABASE_TTL) {
+        void download(true)
+      }
     } catch {
       reader = null
       await deleteCachedDatabase().catch(() => {})
@@ -150,29 +161,34 @@ const ensureStorageSpace = async () => {
   }
 }
 
-const download = async () => {
+const download = async (background = false) => {
   if (downloadController) return
 
   if (typeof DecompressionStream === 'undefined') {
-    post({ type: 'status', status: 'error', error: 'unsupported' })
+    if (!background) post({ type: 'status', status: 'error', error: 'unsupported' })
     return
   }
 
   try {
     await ensureStorageSpace()
   } catch (error) {
-    post({
-      type: 'status',
-      status: 'error',
-      error: error instanceof WorkerError ? error.code : 'space',
-    })
+    if (!background) {
+      post({
+        type: 'status',
+        status: 'error',
+        error: error instanceof WorkerError ? error.code : 'space',
+      })
+    }
     return
   }
 
   const controller = new AbortController()
   downloadController = controller
-  reader = null
-  post({ type: 'status', status: 'downloading', received: 0 })
+
+  if (!background) {
+    reader = null
+    post({ type: 'status', status: 'downloading', received: 0 })
+  }
 
   try {
     const response = await fetch(DBIP_CITY_URL, { signal: controller.signal })
@@ -186,7 +202,7 @@ const download = async () => {
     const progressStream = new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, streamController) {
         received += chunk.byteLength
-        post({ type: 'status', status: 'downloading', received, total })
+        if (!background) post({ type: 'status', status: 'downloading', received, total })
         streamController.enqueue(chunk)
       },
     })
@@ -217,7 +233,6 @@ const download = async () => {
     try {
       await writeCachedDatabase({
         blob,
-        version: DBIP_CITY_VERSION,
         storedAt: Date.now(),
       })
     } catch {
@@ -227,14 +242,16 @@ const download = async () => {
     reader = nextReader
     post({ type: 'status', status: 'ready' })
   } catch (error) {
-    if (controller.signal.aborted) {
-      post({ type: 'status', status: 'idle' })
-    } else {
-      post({
-        type: 'status',
-        status: 'error',
-        error: error instanceof WorkerError ? error.code : 'network',
-      })
+    if (!background) {
+      if (controller.signal.aborted) {
+        post({ type: 'status', status: 'idle' })
+      } else {
+        post({
+          type: 'status',
+          status: 'error',
+          error: error instanceof WorkerError ? error.code : 'network',
+        })
+      }
     }
   } finally {
     if (downloadController === controller) {
@@ -254,6 +271,9 @@ const localizedName = (names: unknown, locale: string) => {
   return values[locale] ?? values[language.split('-')[0]] ?? values.en ?? ''
 }
 
+const cityDisplayName = (name: string) =>
+  name.replace(/\s*(?:(?:\([^()]*\)|（[^（）]*）)\s*)+$/u, '').trim()
+
 const lookup = (id: number, ips: string[], locale: string) => {
   const locations: Record<string, EarthLocation | null> = {}
 
@@ -270,7 +290,7 @@ const lookup = (id: number, ips: string[], locale: string) => {
               ip,
               latitude,
               longitude,
-              city: localizedName(match?.city?.names, locale),
+              city: cityDisplayName(localizedName(match?.city?.names, locale)),
               country: localizedName(match?.country?.names, locale),
             }
     } catch {

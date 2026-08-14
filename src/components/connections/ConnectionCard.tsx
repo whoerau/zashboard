@@ -234,9 +234,7 @@ export default defineComponent<{
 
       return (
         <div
-          class={[
-            'scroller-item text-base-content/65 flex cursor-pointer flex-col gap-1 px-3 py-2',
-          ]}
+          class="text-base-content/65 flex cursor-pointer flex-col gap-1 px-3 py-2"
           onClick={() => handlerInfo(conn)}
         >
           {connectionCardLines.value.map((line) => (

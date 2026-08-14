@@ -1,6 +1,6 @@
 <template>
   <div
-    class="scroller-item hover:bg-base-200/40 flex flex-col gap-2 px-3 py-2 text-sm transition-colors"
+    class="hover:bg-base-200/40 flex flex-col gap-1 px-3 py-2.5 text-sm transition-colors"
     :class="connectionID && 'cursor-pointer'"
     @click="connectionID && emits('connectionClick', connectionID)"
   >
@@ -28,7 +28,7 @@
         />
       </span>
     </div>
-    <div class="w-full leading-relaxed break-words">
+    <div class="w-full leading-snug break-words">
       <HighlightText
         :text="log.payload"
         :filter="logFilter"

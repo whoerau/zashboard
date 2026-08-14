@@ -19,6 +19,18 @@
         </select>
         <button
           class="btn btn-ghost btn-sm btn-square"
+          :aria-label="t(showCityLabels ? 'earthHideCityLabels' : 'earthShowCityLabels')"
+          :title="t(showCityLabels ? 'earthHideCityLabels' : 'earthShowCityLabels')"
+          :aria-pressed="showCityLabels"
+          @click="toggleCityLabels"
+        >
+          <MapPinIcon
+            class="h-4 w-4"
+            :class="{ 'opacity-40': !showCityLabels }"
+          />
+        </button>
+        <button
+          class="btn btn-ghost btn-sm btn-square"
           :aria-label="t(rotationPaused ? 'earthResumeRotation' : 'earthPauseRotation')"
           :title="t(rotationPaused ? 'earthResumeRotation' : 'earthPauseRotation')"
           :aria-pressed="rotationPaused"
@@ -107,20 +119,6 @@
         >
           <ArrowPathIcon class="h-4 w-4" />
         </button>
-      </div>
-
-      <div
-        class="bg-base-100/75 pointer-events-none absolute right-2 bottom-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg px-2 py-1.5 text-[11px] shadow backdrop-blur-md"
-      >
-        <span class="flex items-center gap-1">
-          <i class="h-0.5 w-4 bg-[#5fcaff]" />{{ t('earthConnectionLine') }}
-        </span>
-        <span class="flex items-center gap-1">
-          <i class="h-1.5 w-1.5 rounded-full bg-[#ffdc5e]" />{{ t('upload') }}
-        </span>
-        <span class="flex items-center gap-1">
-          <i class="h-1.5 w-1.5 rounded-full bg-[#3235ee]" />{{ t('download') }}
-        </span>
       </div>
 
       <div
@@ -309,6 +307,7 @@
 <script setup lang="ts">
 import { getIPFromIpipnetAPI, getIPFromIpsbAPI } from '@/api/geoip'
 import { ipForChina, ipForGlobal } from '@/composables/overview'
+import { themeColorScheme } from '@/helper/theme'
 import { prettyBytesHelper } from '@/helper/utils'
 import { activeConnections } from '@/store/connections'
 import { earthOriginSource, earthVisualMode, language, theme } from '@/store/settings'
@@ -318,6 +317,7 @@ import {
   ArrowsPointingOutIcon,
   EyeIcon,
   EyeSlashIcon,
+  MapPinIcon,
   PauseIcon,
   PlayIcon,
 } from '@heroicons/vue/24/outline'
@@ -336,7 +336,7 @@ import {
   type GeoWorkerRequest,
   type GeoWorkerResponse,
 } from './earth/types'
-import type { EarthRenderer } from './earth/EarthRenderer'
+import type { EarthRenderer } from './earth/earthRenderer'
 
 const { t } = useI18n()
 const canvasRef = ref<HTMLElement>()
@@ -350,6 +350,7 @@ const downloadTotalBytes = ref(DBIP_COMPRESSED_BYTES)
 const originIP = ref('')
 const originStatus = ref<'loading' | 'ready' | 'error'>('loading')
 const showOriginIP = ref(false)
+const showCityLabels = ref(true)
 const rotationPaused = ref(false)
 const expanded = ref(false)
 const routeCount = ref(0)
@@ -429,12 +430,6 @@ const tooltipStyle = computed<CSSProperties>(() => ({
   left: `${Math.min(window.innerWidth - 190, tooltipPosition.value.x + 12)}px`,
   top: `${Math.min(window.innerHeight - 100, tooltipPosition.value.y + 12)}px`,
 }))
-
-const getEarthColorScheme = (): 'dark' | 'light' => {
-  const colorScheme = getComputedStyle(document.body).getPropertyValue('color-scheme').trim()
-
-  return colorScheme.split(/\s+/).includes('dark') ? 'dark' : 'light'
-}
 
 const postWorker = (message: GeoWorkerRequest) => worker?.postMessage(message)
 
@@ -605,7 +600,10 @@ const handleWorkerMessage = ({ data }: MessageEvent<GeoWorkerResponse>) => {
   if (data.received != null) downloadedBytes.value = data.received
   if (data.total != null) downloadTotalBytes.value = data.total
 
-  if (data.status === 'ready') scheduleRouteRefresh()
+  if (data.status === 'ready') {
+    locationCache.clear()
+    scheduleRouteRefresh()
+  }
   if (data.status !== 'ready' && data.status !== 'downloading') {
     routeCount.value = 0
     renderer.value?.setRoutes([])
@@ -620,6 +618,11 @@ const handleEndpointHover = (info: EarthEndpointInfo | null, x?: number, y?: num
 const toggleRotation = () => {
   rotationPaused.value = !rotationPaused.value
   renderer.value?.setAutoRotation(!rotationPaused.value)
+}
+
+const toggleCityLabels = () => {
+  showCityLabels.value = !showCityLabels.value
+  renderer.value?.setCityLabelsVisible(showCityLabels.value)
 }
 
 const handleKeydown = (event: KeyboardEvent) => {
@@ -638,7 +641,7 @@ watch(
   theme,
   async () => {
     await nextTick()
-    renderer.value?.setColorScheme(getEarthColorScheme())
+    renderer.value?.setColorScheme(themeColorScheme.value)
   },
   { flush: 'post' },
 )
@@ -654,13 +657,13 @@ const initialize = async () => {
   await nextTick()
 
   try {
-    const { createEarthRenderer } = await import('./earth/EarthRenderer')
+    const { createEarthRenderer } = await import('./earth/earthRenderer')
 
     if (!canvasRef.value || disposed) return
     const createdRenderer = await createEarthRenderer(canvasRef.value, {
       reducedMotion: reducedMotion.value,
       visualMode: earthVisualMode.value,
-      colorScheme: getEarthColorScheme(),
+      colorScheme: themeColorScheme.value,
       onEndpointHover: handleEndpointHover,
     })
 
@@ -671,6 +674,7 @@ const initialize = async () => {
 
     renderer.value = createdRenderer
     createdRenderer.setAutoRotation(!rotationPaused.value)
+    createdRenderer.setCityLabelsVisible(showCityLabels.value)
     scheduleRouteRefresh()
   } catch {
     canvasRef.value?.replaceChildren()

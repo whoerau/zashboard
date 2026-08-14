@@ -14,16 +14,26 @@ import { activeBackend } from '@/store/setup'
 import type { Proxy } from '@/types'
 import { proxyGroupList, proxyMap, proxyProviederList } from './index'
 
-const nodeToProxy = (item: GroupItem): Proxy => ({
-  name: item.tag,
-  type: item.type,
-  now: '',
-  history:
-    item.urlTestDelay > 0 ? [{ time: new Date().toISOString(), delay: item.urlTestDelay }] : [],
-  extra: {},
-  udp: true,
-  icon: '',
-})
+const getHistoryFromItem = (item: GroupItem): Proxy['history'] =>
+  item.urlTestDelay > 0
+    ? [
+        {
+          time: new Date(Number(item.urlTestTime) * 1000).toISOString(),
+          delay: item.urlTestDelay,
+        },
+      ]
+    : []
+
+const nodeToProxy = (item: GroupItem): Proxy => {
+  return {
+    name: item.tag,
+    type: item.type,
+    now: '',
+    history: getHistoryFromItem(item),
+    extra: {},
+    icon: '',
+  }
+}
 
 let groups = new Map<string, Group>()
 let outbounds = new Map<string, GroupItem>()
@@ -100,9 +110,9 @@ const rebuild = () => {
       type: group.type,
       now: group.selected,
       all: group.items.map((i) => i.tag),
+      selectable: group.selectable,
       history: [],
       extra: {},
-      udp: true,
       icon: '',
     }
   }
@@ -111,7 +121,7 @@ const rebuild = () => {
     for (const item of group.items) {
       const node = proxies[item.tag]
       if (node && !node.all?.length && item.urlTestDelay > 0) {
-        node.history = [{ time: new Date().toISOString(), delay: item.urlTestDelay }]
+        node.history = getHistoryFromItem(item)
       }
     }
   }
@@ -190,7 +200,8 @@ export const fetchProxies = async () => {
 
 export const handlerProxySelect = async (proxyGroupName: string, proxyName: string) => {
   const client = getSingboxClient()?.client
-  if (!client) return
+  const proxyGroup = proxyMap.value[proxyGroupName]
+  if (!client || proxyGroup?.selectable === false) return
 
   await client.selectOutbound({ groupTag: proxyGroupName, outboundTag: proxyName })
 

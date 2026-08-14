@@ -5,9 +5,6 @@
     :class="{
       'select-none': isDragging,
     }"
-    @touchstart.passive.stop
-    @touchmove.passive.stop
-    @touchend.passive.stop
     @mousedown="handleMouseDown"
     @mousemove="handleMouseMove"
     @mouseup="handleMouseUp"

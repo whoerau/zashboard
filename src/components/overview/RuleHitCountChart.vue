@@ -1,5 +1,8 @@
 <template>
-  <div class="relative h-48 w-full overflow-hidden xl:h-64">
+  <div
+    class="relative h-48 w-full overflow-hidden xl:h-64"
+    data-page-swipe-ignore
+  >
     <div
       ref="chartRef"
       class="h-full w-full"

@@ -135,6 +135,8 @@ const soft = computed(() => {
     traceLogLevel: singbox || honk,
     // fatal / panic:仅 sing-box
     extraLogLevels: singbox,
+    // silent:mihomo 与 sing-box 有,honk 没有
+    silentLogLevel: mihomo || singbox,
   }
 })
 

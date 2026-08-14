@@ -9,11 +9,6 @@
   @apply bg-base-100 overflow-hidden rounded-xl shadow-xs;
 }
 
-/* 虚拟滚动自己画分隔线，普通列表才由容器补 */
-.base-container:not(.virtual-scroller) .scroller-item + .scroller-item {
-  @apply border-base-border border-t;
-}
-
 /* ---------- 底部 dock ---------- */
 
 .dock {

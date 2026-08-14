@@ -2,6 +2,7 @@
   <div
     class="relative w-full overflow-hidden"
     :class="xAxisMode === 'seconds' ? 'h-36' : 'h-28'"
+    data-page-swipe-ignore
   >
     <div
       ref="chartRef"
