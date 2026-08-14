@@ -93,13 +93,20 @@ test('uses LAN device names in connection display and search values', () => {
   )
 })
 
-test('does not expose an unverifiable in-dashboard UI upgrade action', () => {
+test('exposes the gateway-configured dashboard upgrade action', () => {
   const source = readFileSync(
     new URL('../src/components/settings/general/GeneralSettings.vue', import.meta.url),
     'utf8',
   )
+  const version = readFileSync(new URL('../src/assembly/version.ts', import.meta.url), 'utf8')
 
-  assert.doesNotMatch(source, /upgradeUIAPI|upgradeDashboard/)
+  assert.match(source, /upgradeUIAPI/)
+  assert.match(source, /upgradeDashboard/)
+  assert.match(source, /autoUpgradeDashboard/)
+  assert.match(
+    version,
+    /isUIUpdateAvailable\.value[\s\S]*?autoUpgradeDashboard\.value[\s\S]*?can\('dashboardUpgrade'\)/,
+  )
 })
 
 test('invalidates stale asynchronous generations', () => {

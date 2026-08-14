@@ -18,7 +18,7 @@ import {
   type ForkUIRelease,
   type GitHubComparisonStatus,
 } from '@/helper/uiUpdate'
-import { autoUpgradeCore, checkUpgradeCore } from '@/store/settings'
+import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
 import { computed, nextTick, ref, watch } from 'vue'
@@ -260,6 +260,11 @@ export const isUIUpdateAvailable = ref(false)
 
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
+  if (isUIUpdateAvailable.value && autoUpgradeDashboard.value && can('dashboardUpgrade')) {
+    // The gateway owns external-ui-url; managed deployments pin it to this fork's latest release.
+    // 下载源由网关管理；受管部署会将其固定到本 fork 的 latest Release。
+    void upgradeUIAPI().catch((error) => console.warn('Failed to auto-upgrade dashboard', error))
+  }
 }
 
 // 内核 / UI 维护动作(Clash 专属,无后端分支),经版本域门面暴露给 view。

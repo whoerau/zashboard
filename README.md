@@ -61,7 +61,7 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. Right-clicking on a node / node group card will perform a speedtest for the node / node group.
 3. The proxy group sorting is based on the node order in the GLOBAL group. In Mihomo, it follows the configuration file order, while in sing-box, route.final is placed first, with the rest following the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
 4. The dashboard supports PWA (Progressive Web App), which can provide a native app-like experience on mobile devices through "Add to Home Screen".
-5. Mihomo's `/upgrade/ui` uses a core-configured URL that `/configs` cannot verify. This fork therefore hides the in-dashboard upgrade action. Install updates through the managed deployment workflow, or download `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip` explicitly.
+5. The dashboard update button and auto-upgrade call the core's `/upgrade/ui` endpoint. Configure Mihomo's `external-ui-url` as `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`; otherwise the core may install its default dashboard instead of this fork.
 
 ## 提示
 
@@ -69,7 +69,7 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. 右键点击节点/节点组卡片可对节点/节点组进行测速。
 3. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，在Mihomo中会是按配置文件的顺序，在sing-box中会把route.final放到第一位，其余按照配置文件顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
 4. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
-5. Mihomo 的 `/upgrade/ui` 使用核心预设 URL，而 `/configs` 无法校验该地址。此 fork 因而隐藏面板内升级按钮；请使用受管部署流程，或显式下载 `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip` 更新。
+5. 面板更新按钮及自动更新会调用核心的 `/upgrade/ui`。请把 Mihomo 的 `external-ui-url` 配置为 `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`；否则核心可能安装其默认面板，而不是本 fork。
 
 ## LAN rules sidecar
 

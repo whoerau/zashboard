@@ -4,6 +4,20 @@
       {{ $t('general') }}
     </div>
     <div class="settings-grid">
+      <SettingItem
+        :setting-key="k.actions"
+        :when="can('dashboardUpgrade')"
+      >
+        <div class="setting-item-label">
+          {{ $t('upgradeDashboard') }}
+        </div>
+        <button
+          :class="twMerge('btn btn-sm', isUIUpgrading ? 'animate-pulse' : '')"
+          @click="handlerClickUpgradeUI"
+        >
+          <ArrowUpCircleIcon class="h-4 w-4" />
+        </button>
+      </SettingItem>
       <SettingItem :setting-key="k.actions">
         <div class="setting-item-label">
           {{ $t('dashboardSettings') }}
@@ -11,6 +25,19 @@
         <DashboardSettings icon-only />
       </SettingItem>
       <LanguageSelect />
+      <SettingItem
+        :setting-key="k.autoUpgradeDashboard"
+        :when="can('dashboardUpgrade')"
+      >
+        <div class="setting-item-label">
+          {{ $t('autoUpgradeDashboard') }}
+        </div>
+        <input
+          class="toggle"
+          type="checkbox"
+          v-model="autoUpgradeDashboard"
+        />
+      </SettingItem>
       <SettingItem :setting-key="k.autoDisconnectIdleUDP">
         <div class="setting-item-label">
           {{ $t('autoDisconnectIdleUDP') }}
@@ -168,7 +195,8 @@
 </template>
 
 <script setup lang="ts">
-import { showDisplayAllFeatures } from '@/assembly/backend'
+import { can, showDisplayAllFeatures } from '@/assembly/backend'
+import { upgradeUIAPI } from '@/assembly/version'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
 import KeyboardShortcutsSettings from '@/components/settings/general/KeyboardShortcutsSettings.vue'
 import LanguageSelect from '@/components/settings/general/LanguageSelect.vue'
@@ -177,11 +205,14 @@ import TextInput from '@/components/common/TextInput.vue'
 import { useIsSettingVisible } from '@/composables/settings'
 import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
 import { IP_INFO_API } from '@/constant'
+import { handlerUpgradeSuccess } from '@/helper'
 import { useTooltip } from '@/helper/tooltip'
 import { isMiddleScreen } from '@/helper/utils'
+import { twMerge } from 'tailwind-merge'
 import {
   autoDisconnectIdleUDP,
   autoDisconnectIdleUDPTime,
+  autoUpgradeDashboard,
   disablePullToRefresh,
   displayAllFeatures,
   geoipASNDatabaseURL,
@@ -191,8 +222,8 @@ import {
   swipeInPages,
   swipeInTabs,
 } from '@/store/settings'
-import { QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
-import { computed } from 'vue'
+import { ArrowUpCircleIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { computed, ref } from 'vue'
 
 const { showTip } = useTooltip()
 
@@ -201,6 +232,7 @@ const isVisibleActions = useIsSettingVisible(k.actions)
 const isVisibleLanguage = useIsSettingVisible(k.language)
 const isVisibleShortcutsSetting = useIsSettingVisible(k.keyboardShortcuts)
 const isVisibleShortcuts = computed(() => isVisibleShortcutsSetting.value && !isMiddleScreen.value)
+const isVisibleAutoUpgrade = useIsSettingVisible(k.autoUpgradeDashboard)
 const isVisibleAutoDisconnectIdleUDP = useIsSettingVisible(k.autoDisconnectIdleUDP)
 const isVisibleAutoDisconnectIdleUDPTime = useIsSettingVisible(k.autoDisconnectIdleUDPTime)
 const isVisibleIPInfoAPI = useIsSettingVisible(k.IPInfoAPI)
@@ -212,11 +244,30 @@ const isVisibleSwipeInTabs = useIsSettingVisible(k.swipeInTabs)
 const isVisibleDisablePullToRefresh = useIsSettingVisible(k.disablePullToRefresh)
 const isVisibleDisplayAllFeatures = useIsSettingVisible(k.displayAllFeatures)
 
+const isUIUpgrading = ref(false)
+const handlerClickUpgradeUI = async () => {
+  if (isUIUpgrading.value) return
+  isUIUpgrading.value = true
+  try {
+    await upgradeUIAPI()
+    handlerUpgradeSuccess()
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
+  } catch {
+    // Request errors are surfaced by the shared HTTP notification path.
+    // 请求错误由共享 HTTP 通知链路展示。
+  } finally {
+    isUIUpgrading.value = false
+  }
+}
+
 const hasVisibleGeneralItems = computed(() => {
   return (
     isVisibleActions.value ||
     isVisibleLanguage.value ||
     isVisibleShortcuts.value ||
+    isVisibleAutoUpgrade.value ||
     isVisibleAutoDisconnectIdleUDP.value ||
     (autoDisconnectIdleUDP.value && isVisibleAutoDisconnectIdleUDPTime.value) ||
     isVisibleIPInfoAPI.value ||
