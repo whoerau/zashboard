@@ -22,7 +22,7 @@ import { getUrlFromBackend } from '@/helper/utils'
 import { activeBackend } from '@/store/setup'
 import type { Rule, RuleProvider } from '@/types'
 import { useStorage } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const EMPTY_LAN_RULES_MANIFEST: LanRulesManifest = {
   version: 2,
@@ -62,12 +62,43 @@ export const lanDeviceResolver = computed(() => createLanDeviceResolver(rules.va
 
 export const lanRulesManifest = ref<LanRulesManifest>(EMPTY_LAN_RULES_MANIFEST)
 const lanRulesManifestSnapshotKey = ref('')
+export type LanRulesManifestStatus = 'checking' | 'inactive' | 'active'
+export const lanRulesManifestStatus = ref<LanRulesManifestStatus>('inactive')
+export const canUseCoreUIUpdater = computed(() => lanRulesManifestStatus.value === 'inactive')
 export const lanRulesDevices = computed(() =>
   getBackendScopedSnapshot(
     lanRulesManifest.value.devices,
     lanRulesManifestSnapshotKey.value,
     currentRulesSnapshotKey.value,
   ),
+)
+
+export const waitForLanRulesManifestCheck = () => {
+  if (lanRulesManifestStatus.value !== 'checking') return Promise.resolve()
+
+  return new Promise<void>((resolve) => {
+    const stop = watch(lanRulesManifestStatus, (status) => {
+      if (status === 'checking') return
+      stop()
+      resolve()
+    })
+  })
+}
+
+const shouldFetchLanRulesManifest = () => {
+  const backend = activeBackend.value
+  if (channel.value !== Channel.Clash || !backend) return false
+  return isLanRulesManifestSameOrigin(document.baseURI, getUrlFromBackend(backend))
+}
+
+// Mark the check pending as soon as a backend changes, before page initialization can await.
+// 后端一切换就立即标记待检查，不等页面初始化的异步流程。
+watch(
+  currentRulesSnapshotKey,
+  () => {
+    lanRulesManifestStatus.value = shouldFetchLanRulesManifest() ? 'checking' : 'inactive'
+  },
+  { immediate: true, flush: 'sync' },
 )
 
 const fetchLanRulesManifest = async (backendURL: string) => {
@@ -141,10 +172,12 @@ export const fetchRules = async () => {
   // 在新请求可能失败或竞态前，先丢弃上一后端的数据。
   if (rulesSnapshotKey.value !== requestSnapshotKey) clearRulesSnapshot()
 
-  const manifestRequest =
-    requestChannel === Channel.Clash && backendURL
-      ? fetchLanRulesManifest(backendURL)
-      : Promise.resolve(undefined)
+  const shouldFetchManifest = shouldFetchLanRulesManifest()
+  lanRulesManifestStatus.value = shouldFetchManifest ? 'checking' : 'inactive'
+
+  const manifestRequest = shouldFetchManifest
+    ? fetchLanRulesManifest(backendURL)
+    : Promise.resolve(undefined)
 
   const [snapshot, manifest] = await Promise.all([
     (await load(requestChannel)).fetchRules(),
@@ -167,6 +200,7 @@ export const fetchRules = async () => {
       rulesDevice.value,
       manifest.devices.map((device) => device.name),
     )
+    lanRulesManifestStatus.value = manifest.devices.length ? 'active' : 'inactive'
     return
   }
 
@@ -177,6 +211,8 @@ export const fetchRules = async () => {
     lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
     lanRulesManifestSnapshotKey.value = ''
   }
+  lanRulesManifestStatus.value =
+    canKeepPrevious && lanRulesManifest.value.devices.length ? 'active' : 'inactive'
 }
 
 export const toggleRuleDisabled = (rule: Rule, disabled: boolean) =>

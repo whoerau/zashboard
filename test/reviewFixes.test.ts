@@ -12,6 +12,7 @@ import {
   isLanRulesManifestSameOrigin,
   parseLanRulesManifest,
 } from '../src/helper/lanRulesManifest.ts'
+import { pickGitHubComparisonCacheData } from '../src/helper/uiUpdate.ts'
 
 test('routes notification messages through the text-only renderer', () => {
   const source = readFileSync(new URL('../src/helper/notification.ts', import.meta.url), 'utf8')
@@ -93,19 +94,69 @@ test('uses LAN device names in connection display and search values', () => {
   )
 })
 
-test('exposes the gateway-configured dashboard upgrade action', () => {
+test('blocks the destructive core dashboard updater while managed LAN rules are active', () => {
   const source = readFileSync(
     new URL('../src/components/settings/general/GeneralSettings.vue', import.meta.url),
     'utf8',
   )
   const version = readFileSync(new URL('../src/assembly/version.ts', import.meta.url), 'utf8')
+  const rules = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
 
   assert.match(source, /upgradeUIAPI/)
+  assert.match(source, /:disabled="!canUseCoreUIUpdater"/)
   assert.match(source, /upgradeDashboard/)
   assert.match(source, /autoUpgradeDashboard/)
+  assert.match(version, /waitForLanRulesManifestCheck\(\)[\s\S]*?!canUseCoreUIUpdater\.value/)
   assert.match(
-    version,
-    /isUIUpdateAvailable\.value[\s\S]*?autoUpgradeDashboard\.value[\s\S]*?can\('dashboardUpgrade'\)/,
+    rules,
+    /watch\(\s*currentRulesSnapshotKey[\s\S]*?\{ immediate: true, flush: 'sync' \}/,
+  )
+})
+
+test('keeps only the GitHub comparison status in local cache', () => {
+  const source = readFileSync(new URL('../src/assembly/version.ts', import.meta.url), 'utf8')
+  const response = {
+    status: 'ahead' as const,
+    commits: Array.from({ length: 100 }, (_, index) => ({ sha: String(index) })),
+    files: Array.from({ length: 100 }, (_, index) => ({ filename: String(index) })),
+  }
+
+  assert.deepEqual(pickGitHubComparisonCacheData(response), { status: 'ahead' })
+  assert.match(source, /writeLocalCache\(cacheKey, url, \{ \.\.\.cache, data: selectedData \}\)/)
+  assert.match(source, /catch \(error\)[\s\S]*?Failed to cache response for/)
+  assert.match(source, /pruneStaleComparisonCaches\(comparisonURL\)/)
+})
+
+test('applies proxy folders to device-scoped groups without counting generated clones', () => {
+  const composable = readFileSync(new URL('../src/composables/proxies.ts', import.meta.url), 'utf8')
+  const folders = readFileSync(new URL('../src/store/proxyFolders.ts', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(composable, /isProxyFolderModeActive\.value \|\| proxiesDevice\.value/)
+  assert.match(folders, /getLanDeviceScopedProxyName\(groupName, device\)/)
+  assert.match(folders, /filter\(\(name\) => !getLanDeviceFromScopedProxyName\(name\)\)/)
+})
+
+test('keeps device-scoped table rules read-only and uses their visible positions', () => {
+  const source = readFileSync(
+    new URL('../src/components/rules/RulesTable.vue', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(source, /getRuleDisplayNumber\(rule, index, rules\.value\)/)
+  assert.match(source, /lanDevice: rulesDevice\.value/)
+  assert.match(source, /rule\.readOnly \|\| \(!rule\.uuid && !rule\.extra\)/)
+  assert.match(source, /renderRules\.value\.some\(\(rule\) => rule\.extra\)/)
+})
+
+test('resets the source IP filter when the active backend changes', () => {
+  const source = readFileSync(
+    new URL('../src/components/controls/SourceIPFilter.vue', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(
+    source,
+    /activeBackend\.value\?\.uuid[\s\S]*?backendID !== previousBackendID[\s\S]*?sourceIPFilter\.value = null/,
   )
 })
 

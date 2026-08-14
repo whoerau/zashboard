@@ -256,6 +256,9 @@ const en = {
   noExpire: 'No expiry',
   updated: 'Updated',
   upgradeDashboard: 'Upgrade dashboard',
+  dashboardUpgradeCheckingLanRules: 'Checking managed LAN rules before dashboard upgrade',
+  dashboardUpgradeManagedLanRules:
+    'Built-in upgrade is disabled to preserve lan-rules.json; run whoerctl zashboard update',
   reloadConfigs: 'Reload configs',
   updateConfigs: 'Update configs',
   updateConfigsSuccess: 'Configs updated successfully',

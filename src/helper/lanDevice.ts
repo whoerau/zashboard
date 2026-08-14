@@ -99,3 +99,20 @@ export const getLanDeviceDisplayName = (
       : getLanDeviceName(ip, rulesOrResolver)
   return device ? `${ip} (${device})` : fallback(ip)
 }
+
+const BRACKETED_IPV6_ENDPOINT_RE = /\[([0-9a-f:.]+)\](?=:)/gi
+const IPV4_ENDPOINT_RE = /(^|[^\d.])((?:\d{1,3}\.){3}\d{1,3})(?=:)/g
+
+export const labelLanDeviceIPsInLog = (payload: string, resolve: LanDeviceResolver) => {
+  // Label only endpoint-shaped addresses so timestamps and unrelated numbers stay untouched.
+  // 仅标记端点形式的地址，避免误改时间戳和无关数字。
+  const withIPv6Labels = payload.replace(BRACKETED_IPV6_ENDPOINT_RE, (match, ip: string) => {
+    const device = resolve(ip)
+    return device ? `[${ip}] (${device})` : match
+  })
+
+  return withIPv6Labels.replace(IPV4_ENDPOINT_RE, (match, prefix: string, ip: string) => {
+    const device = resolve(ip)
+    return device ? `${prefix}${ip} (${device})` : match
+  })
+}

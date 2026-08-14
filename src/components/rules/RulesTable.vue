@@ -30,6 +30,7 @@
     >
       <ProxyChainPath
         :proxy="selectedRule.proxy"
+        :lan-device="rulesDevice"
         :selected="selectedGroup"
         :show-now-node="displayNowNodeInRule"
         :show-latency="displayLatencyInRule"
@@ -56,6 +57,7 @@ import {
   renderRules,
   renderRulesProvider,
   rules,
+  rulesDevice,
   rulesFilter,
   rulesTabShow,
   updateRuleProviderAPI,
@@ -67,6 +69,7 @@ import {
   toggleRuleDisabledWithSideEffects,
 } from '@/composables/rules'
 import { RULE_TAB_TYPE } from '@/constant'
+import { getRuleDisplayNumber } from '@/helper/ruleView'
 import { fromNow } from '@/helper/utils'
 import { displayLatencyInRule, displayNowNodeInRule } from '@/store/settings'
 import type { Rule, RuleProvider } from '@/types'
@@ -78,17 +81,20 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-// 规则序号按配置顺序算一次,免得每行都去 rules 里 indexOf
+// Keep source positions for normal rules and visible positions for synthesized device rules.
+// 普通规则保留源序号，合成的设备规则使用当前可见序号。
 const ruleIndexMap = computed(() => {
   const map = new Map<Rule, number>()
 
-  rules.value.forEach((rule, index) => map.set(rule, index + 1))
+  renderRules.value.forEach((rule, index) => {
+    map.set(rule, getRuleDisplayNumber(rule, index, rules.value))
+  })
 
   return map
 })
 
 // 命中统计是部分内核才有的字段,没有就别占着两列空表头
-const hasRuleExtra = computed(() => rules.value.some((rule) => rule.extra))
+const hasRuleExtra = computed(() => renderRules.value.some((rule) => rule.extra))
 const ruleColumnVisibility = computed(() => ({
   hitCount: hasRuleExtra.value,
   missCount: hasRuleExtra.value,
@@ -198,6 +204,7 @@ const ruleColumns: ColumnDef<Rule>[] = [
     cell: ({ row }) =>
       h(ProxyChainPath, {
         proxy: row.original.proxy,
+        lanDevice: rulesDevice.value,
         collapsed: true,
         interactive: false,
         showNowNode: displayNowNodeInRule.value,
@@ -247,7 +254,7 @@ const ruleColumns: ColumnDef<Rule>[] = [
     cell: ({ row }) => {
       const rule = row.original
 
-      if (!rule.uuid && !rule.extra) {
+      if (rule.readOnly || (!rule.uuid && !rule.extra)) {
         return null
       }
 

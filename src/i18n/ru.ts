@@ -258,6 +258,9 @@ const ru: LANG_MESSAGE = {
   noExpire: 'Нет',
   updated: 'Обновлено',
   upgradeDashboard: 'Обновить панель до новой версии',
+  dashboardUpgradeCheckingLanRules: 'Проверка управляемых LAN-правил перед обновлением панели',
+  dashboardUpgradeManagedLanRules:
+    'Встроенное обновление отключено для сохранения lan-rules.json; запустите whoerctl zashboard update',
   reloadConfigs: 'Перезагрузить конфигурации',
   updateConfigs: 'Обновить конфигурации',
   updateConfigsSuccess: 'Конфигурации успешно обновлены',

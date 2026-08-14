@@ -111,7 +111,7 @@ export const renderProxiesPageItems = computed(() => {
   }
 
   const groups = renderProxyGroups.value
-  if (!isProxyFolderModeActive.value || proxiesDevice.value) return groups
+  if (!isProxyFolderModeActive.value) return groups
   const filter = groupsInActiveFolder.value
   if (!filter) return groups
   return groups.filter((name) => filter.has(name))

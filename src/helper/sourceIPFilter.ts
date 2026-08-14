@@ -76,7 +76,12 @@ export const buildSourceIPOptions = ({
 
     // Preserve the runtime LAN/label result when this IP already has an active connection.
     // 当前连接已有该 IP 时，保留运行时 LAN/label 结果。
-    if (options.some((option) => option.value.includes(sourceIPLabel.key))) return
+    const normalizedKey = normalizeSourceIP(sourceIPLabel.key)
+    if (
+      options.some((option) => option.value.some((ip) => normalizeSourceIP(ip) === normalizedKey))
+    ) {
+      return
+    }
 
     addOptionValue(options, sourceIPLabel.label, sourceIPLabel.key)
   })

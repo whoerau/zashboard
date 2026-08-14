@@ -1,5 +1,6 @@
 import { proxyGroupList, proxyMap } from '@/assembly/proxies'
 import { FOLDER_MODE, FOLDER_MODE_AUTO_THRESHOLD } from '@/constant'
+import { getLanDeviceFromScopedProxyName, getLanDeviceScopedProxyName } from '@/helper/lanDevice'
 import { proxyFolderMode } from '@/store/settings'
 import { useStorage } from '@vueuse/core'
 import { v4 as uuid } from 'uuid'
@@ -90,14 +91,14 @@ const isNodeOnly = (groupName: string) => {
   return !g.all.some((member) => groupSet.has(member))
 }
 
-const matchRule = (groupName: string, rule: FolderRule): boolean => {
+const matchRule = (groupName: string, rule: FolderRule, comparableName = groupName): boolean => {
   if (rule.type === 'auto') {
     return rule.value === 'nodeOnly' ? isNodeOnly(groupName) : !isNodeOnly(groupName)
   }
   if (rule.type === 'regex' || rule.type === 'excludeRegex') {
     if (!rule.pattern) return false
     try {
-      return new RegExp(rule.pattern).test(groupName)
+      return new RegExp(rule.pattern).test(comparableName)
     } catch {
       return false
     }
@@ -105,11 +106,15 @@ const matchRule = (groupName: string, rule: FolderRule): boolean => {
   return false
 }
 
-const folderRuleMatch = (groupName: string, rules: FolderRule[]): boolean => {
+const folderRuleMatch = (
+  groupName: string,
+  rules: FolderRule[],
+  comparableName = groupName,
+): boolean => {
   const includes = rules.filter((r) => r.type === 'auto' || r.type === 'regex')
   const excludes = rules.filter((r) => r.type === 'excludeRegex')
-  if (!includes.some((r) => matchRule(groupName, r))) return false
-  return !excludes.some((r) => matchRule(groupName, r))
+  if (!includes.some((r) => matchRule(groupName, r, comparableName))) return false
+  return !excludes.some((r) => matchRule(groupName, r, comparableName))
 }
 
 const sortedFolders = computed(() =>
@@ -123,10 +128,14 @@ export const groupMatchesFolderRule = (groupName: string, folderId: string): boo
 }
 
 export const foldersOfGroup = (groupName: string): string[] => {
+  const device = getLanDeviceFromScopedProxyName(groupName)
+  // Device clones inherit the folder identity of their original proxy group.
+  // 设备克隆组继承原始代理组的文件夹归属。
+  const comparableName = getLanDeviceScopedProxyName(groupName, device)
   const result: string[] = []
   for (const f of sortedFolders.value) {
-    const manual = f.manualIncludes.includes(groupName)
-    const ruled = folderRuleMatch(groupName, f.rules)
+    const manual = f.manualIncludes.includes(groupName) || f.manualIncludes.includes(comparableName)
+    const ruled = folderRuleMatch(groupName, f.rules, comparableName)
     if (manual || ruled) result.push(f.id)
   }
   return result
@@ -167,7 +176,10 @@ export const isProxyFolderModeActive = computed(() => {
     case FOLDER_MODE.OFF:
       return false
     default:
-      return proxyGroupList.value.length > FOLDER_MODE_AUTO_THRESHOLD
+      return (
+        proxyGroupList.value.filter((name) => !getLanDeviceFromScopedProxyName(name)).length >
+        FOLDER_MODE_AUTO_THRESHOLD
+      )
   }
 })
 

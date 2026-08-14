@@ -55,6 +55,16 @@ const sourceIPOpts = ref<{ label: string; value: string[] }[]>([])
 const manualSourceIPLabels = computed(() =>
   sourceIPLabelList.value.map(({ key, label, scope }) => ({ key, label, scope })),
 )
+
+// A source selection belongs to one backend and must never leak into another.
+// 来源筛选只属于当前后端，切换后不得沿用。
+watch(
+  () => activeBackend.value?.uuid,
+  (backendID, previousBackendID) => {
+    if (backendID !== previousBackendID) sourceIPFilter.value = null
+  },
+)
+
 // do not use computed here for firefox
 watch(
   [sourceIPs, lanDeviceResolver, manualSourceIPLabels, activeBackend],

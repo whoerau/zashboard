@@ -32,6 +32,16 @@ test('matches IPv4 and IPv4-mapped source addresses as one filter identity', () 
   assert.equal(matchesSourceIP('192.168.50.95'), false)
 })
 
+test('does not add a manual IPv4 duplicate for a live mapped source', () => {
+  const options = buildSourceIPOptions({
+    sourceIPs: ['::ffff:192.168.50.94'],
+    sourceIPLabels: [{ key: '192.168.50.94', label: 'manual-phone' }],
+    resolveLanDevice: () => 'phone',
+  })
+
+  assert.deepEqual(options, [{ label: 'phone', value: ['::ffff:192.168.50.94'] }])
+})
+
 test('skips scoped source IP labels for other backends', () => {
   const options = buildSourceIPOptions({
     sourceIPs: [],

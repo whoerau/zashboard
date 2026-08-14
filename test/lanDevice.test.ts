@@ -8,6 +8,7 @@ import {
   getLanDeviceScopedProxyName,
   getValidLanDevice,
   isProxyGroupInLanDeviceScope,
+  labelLanDeviceIPsInLog,
   LAN_DEVICE_STORAGE_KEYS,
   resolveRulesDeviceSelection,
   sortLanDeviceNames,
@@ -115,6 +116,32 @@ test('compiled LAN resolver does not rescan rules for repeated IP lookups', () =
   assert.equal(resolve('192.168.50.94'), 'oneplus8')
   assert.equal(resolve('192.168.50.94'), 'oneplus8')
   assert.equal(proxyReads, readsAfterCompile)
+})
+
+test('adds LAN device names to IPv4 and bracketed IPv6 log endpoints', () => {
+  const resolve = createLanDeviceResolver([
+    { proxy: 'lan/phone', payload: '(SRC-IP-CIDR,192.168.50.94/32)' },
+    { proxy: 'lan/tablet', payload: '(SRC-IP-CIDR6,2001:db8::5/128)' },
+  ])
+
+  assert.equal(
+    labelLanDeviceIPsInLog(
+      'accepted 192.168.50.94:54321 -> [2001:db8::5]:443, ignored 192.168.50.1:53',
+      resolve,
+    ),
+    'accepted 192.168.50.94 (phone):54321 -> [2001:db8::5] (tablet):443, ignored 192.168.50.1:53',
+  )
+})
+
+test('labels an IPv4-mapped log endpoint only once', () => {
+  const resolve = createLanDeviceResolver([
+    { proxy: 'lan/phone', payload: '(SRC-IP-CIDR,192.168.50.94/32)' },
+  ])
+
+  assert.equal(
+    labelLanDeviceIPsInLog('[::ffff:192.168.50.94]:54321 connected', resolve),
+    '[::ffff:192.168.50.94] (phone):54321 connected',
+  )
 })
 
 test('keeps source positions for ordinary rules and local positions for scoped rules', () => {

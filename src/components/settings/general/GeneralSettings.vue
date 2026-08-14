@@ -13,6 +13,8 @@
         </div>
         <button
           :class="twMerge('btn btn-sm', isUIUpgrading ? 'animate-pulse' : '')"
+          :disabled="!canUseCoreUIUpdater"
+          :title="dashboardUpgradeDisabledTip"
           @click="handlerClickUpgradeUI"
         >
           <ArrowUpCircleIcon class="h-4 w-4" />
@@ -36,6 +38,8 @@
           class="toggle"
           type="checkbox"
           v-model="autoUpgradeDashboard"
+          :disabled="!canUseCoreUIUpdater"
+          :title="dashboardUpgradeDisabledTip"
         />
       </SettingItem>
       <SettingItem :setting-key="k.autoDisconnectIdleUDP">
@@ -196,6 +200,7 @@
 
 <script setup lang="ts">
 import { can, showDisplayAllFeatures } from '@/assembly/backend'
+import { canUseCoreUIUpdater, lanRulesManifestStatus } from '@/assembly/rules'
 import { upgradeUIAPI } from '@/assembly/version'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
 import KeyboardShortcutsSettings from '@/components/settings/general/KeyboardShortcutsSettings.vue'
@@ -224,8 +229,10 @@ import {
 } from '@/store/settings'
 import { ArrowUpCircleIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const { showTip } = useTooltip()
+const { t } = useI18n()
 
 const k = GENERAL_ITEM_KEYS
 const isVisibleActions = useIsSettingVisible(k.actions)
@@ -245,8 +252,16 @@ const isVisibleDisablePullToRefresh = useIsSettingVisible(k.disablePullToRefresh
 const isVisibleDisplayAllFeatures = useIsSettingVisible(k.displayAllFeatures)
 
 const isUIUpgrading = ref(false)
+const dashboardUpgradeDisabledTip = computed(() => {
+  if (canUseCoreUIUpdater.value) return undefined
+  return t(
+    lanRulesManifestStatus.value === 'checking'
+      ? 'dashboardUpgradeCheckingLanRules'
+      : 'dashboardUpgradeManagedLanRules',
+  )
+})
 const handlerClickUpgradeUI = async () => {
-  if (isUIUpgrading.value) return
+  if (isUIUpgrading.value || !canUseCoreUIUpdater.value) return
   isUIUpgrading.value = true
   try {
     await upgradeUIAPI()

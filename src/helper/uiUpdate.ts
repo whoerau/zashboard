@@ -12,6 +12,14 @@ export type ForkUIRelease = {
 
 export type GitHubComparisonStatus = 'ahead' | 'behind' | 'diverged' | 'identical'
 
+export type GitHubComparison = {
+  status: GitHubComparisonStatus
+}
+
+export const pickGitHubComparisonCacheData = ({ status }: GitHubComparison): GitHubComparison => ({
+  status,
+})
+
 const COMMIT_RE = /\bBuilt from ([0-9a-f]{7,40})\b/i
 const HEX_COMMIT_RE = /^[0-9a-f]{7,40}$/i
 const SEMVER_TAG_RE = /^v(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/

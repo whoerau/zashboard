@@ -4,6 +4,7 @@
 // 版本字符串是 core 轴(assembly/backend.ts)的唯一来源:这里探测完成后写入 core,
 // 后端切换的瞬间先重置为 'unknown',避免沿用上一个后端的结论。
 import { fetchClashVersion, restartCoreAPI, upgradeCoreAPI, upgradeUIAPI } from '@/api/clash'
+import { canUseCoreUIUpdater, waitForLanRulesManifestCheck } from '@/assembly/rules'
 import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import SingBoxLogo from '@/assets/images/sing-box.svg'
@@ -15,7 +16,9 @@ import {
   getForkUIReleaseCommit,
   isForkUIUpdateAvailable,
   isSameCommit,
+  pickGitHubComparisonCacheData,
   type ForkUIRelease,
+  type GitHubComparison,
   type GitHubComparisonStatus,
 } from '@/helper/uiUpdate'
 import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store/settings'
@@ -188,7 +191,21 @@ interface CacheEntry<T> {
   data: T
 }
 
-async function fetchWithLocalCache<T>(url: string, version: string): Promise<T> {
+const writeLocalCache = <T>(cacheKey: string, url: string, cache: CacheEntry<T>) => {
+  // A cache write must never turn a successful update check into a failure.
+  // 缓存写入失败不得让已成功的更新检查变成失败。
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(cache))
+  } catch (error) {
+    console.warn('Failed to cache response for', url, error)
+  }
+}
+
+async function fetchWithLocalCache<T>(
+  url: string,
+  version: string,
+  selectCacheData: (data: T) => T = (data) => data,
+): Promise<T> {
   const cacheKey = 'cache/' + url
   const cacheRaw = localStorage.getItem(cacheKey)
 
@@ -198,7 +215,9 @@ async function fetchWithLocalCache<T>(url: string, version: string): Promise<T> 
       const now = Date.now()
 
       if (now - cache.timestamp < CACHE_DURATION && cache.version === version) {
-        return cache.data
+        const selectedData = selectCacheData(cache.data)
+        writeLocalCache(cacheKey, url, { ...cache, data: selectedData })
+        return selectedData
       } else {
         localStorage.removeItem(cacheKey)
       }
@@ -216,11 +235,25 @@ async function fetchWithLocalCache<T>(url: string, version: string): Promise<T> 
   const newCache: CacheEntry<T> = {
     timestamp: Date.now(),
     version,
-    data,
+    data: selectCacheData(data),
   }
 
-  localStorage.setItem(cacheKey, JSON.stringify(newCache))
+  writeLocalCache(cacheKey, url, newCache)
   return data
+}
+
+const pruneStaleComparisonCaches = (keepURL: string) => {
+  const prefix = `cache/${FORK_UI_COMPARE_API_URL}/`
+  const keepKey = `cache/${keepURL}`
+
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index)
+      if (key?.startsWith(prefix) && key !== keepKey) localStorage.removeItem(key)
+    }
+  } catch (error) {
+    console.warn('Failed to prune dashboard comparison caches', error)
+  }
 }
 
 export const fetchIsUIUpdateAvailable = async () => {
@@ -231,9 +264,12 @@ export const fetchIsUIUpdateAvailable = async () => {
   const releaseCommit = getForkUIReleaseCommit(release)
   let comparisonStatus: GitHubComparisonStatus | undefined
   if (__COMMIT_ID__ && releaseCommit && !isSameCommit(__COMMIT_ID__, releaseCommit)) {
-    const comparison = await fetchWithLocalCache<{ status: GitHubComparisonStatus }>(
-      `${FORK_UI_COMPARE_API_URL}/${encodeURIComponent(__COMMIT_ID__)}...${encodeURIComponent(releaseCommit)}`,
+    const comparisonURL = `${FORK_UI_COMPARE_API_URL}/${encodeURIComponent(__COMMIT_ID__)}...${encodeURIComponent(releaseCommit)}`
+    pruneStaleComparisonCaches(comparisonURL)
+    const comparison = await fetchWithLocalCache<GitHubComparison>(
+      comparisonURL,
       `${__COMMIT_ID__}/${releaseCommit}`,
+      pickGitHubComparisonCacheData,
     )
     comparisonStatus = comparison.status
   }
@@ -261,6 +297,11 @@ export const isUIUpdateAvailable = ref(false)
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
   if (isUIUpdateAvailable.value && autoUpgradeDashboard.value && can('dashboardUpgrade')) {
+    await waitForLanRulesManifestCheck()
+    if (!canUseCoreUIUpdater.value) {
+      console.warn('Skipped core dashboard upgrade to preserve lan-rules.json')
+      return
+    }
     // The gateway owns external-ui-url; managed deployments pin it to this fork's latest release.
     // 下载源由网关管理；受管部署会将其固定到本 fork 的 latest Release。
     void upgradeUIAPI().catch((error) => console.warn('Failed to auto-upgrade dashboard', error))
