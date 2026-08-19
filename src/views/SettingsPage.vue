@@ -78,7 +78,7 @@
     </template>
     <div
       v-else
-      class="mx-auto w-full max-w-3xl space-y-1 p-3 md:space-y-2 md:px-8 md:py-6"
+      class="mx-auto w-full max-w-2xl space-y-1 p-3 md:space-y-2 md:px-8 md:py-6"
     >
       <div
         v-for="item in menuItems"

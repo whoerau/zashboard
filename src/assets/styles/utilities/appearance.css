@@ -13,6 +13,7 @@
     .collapse,
     .input,
     .select,
+    .floating-menu-panel,
     .toggle,
     .settings-menu,
     .ctrls-bar,
@@ -81,6 +82,7 @@
     .settings-grid,
     .base-container,
     .btn,
+    .floating-menu-panel,
     .table thead {
       /* prettier-ignore */
       backdrop-filter: blur($(i)px);

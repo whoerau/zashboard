@@ -17,7 +17,6 @@ const zhTW: LANG_MESSAGE = {
   backendType: '後端類型',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: '無法連線 sing-box API',
   skip: '跳過',
   // 工具頁
   networkQuality: '網路品質',
@@ -104,6 +103,18 @@ const zhTW: LANG_MESSAGE = {
   fontFamily: '字型',
   fontSize: '字型大小',
   defaultFont: '預設',
+
+  // Taildrop
+  taildropSendFiles: '傳送檔案',
+  taildropSending: '傳送中',
+  taildropReceiving: '接收中',
+  taildropFiles: '已接收檔案',
+  taildropEmpty: '暫無檔案',
+  taildropTo: '傳往 {name}',
+  taildropFrom: '來自 {name}',
+  taildropFileCount: '{count} 個檔案',
+  taildropDropHint: '拖曳檔案到此傳送，或點選選擇',
+  deleteAll: '全部刪除',
 
   // USB/IP
   usbip: 'USB/IP',
@@ -287,6 +298,7 @@ const zhTW: LANG_MESSAGE = {
   truncateProxyName: '截斷節點名稱',
   disableProxiesPageTextSelect: '禁用代理頁文字選取',
   sourceIPLabels: '源IP標籤',
+  resolveClientHostname: '反向解析來源 IP 主機名稱',
   proxyPreviewType: '節點預覽類型',
   auto: '自動',
   dots: '點',
@@ -327,9 +339,27 @@ const zhTW: LANG_MESSAGE = {
   secondaryPathTip: '如果有的話以/開頭，沒有則留空不填',
   logRetentionLimit: '日誌保留條數',
   DNSQuery: 'DNS 查詢',
-  currentBackendUnavailable: '當前後端不可用，嘗試切換到其他後端?',
   confirm: '確定',
-  backendSwitchTo: '已切換後端為{backend}',
+  backendSwitched: '已切換後端',
+  backendConnecting: '正在連線...',
+  backendReachable: '連線正常',
+  backendUnreachable: '連線失敗',
+  switchToAnotherBackend: '切換到其他後端',
+  autoSwitchBackend: '切換到第一個可用的後端',
+  noReachableBackend: '其他後端也都連不上',
+
+  // Connection diagnosis
+  diagnosisUnauthorized: '密碼不對，後端拒絕了這次請求',
+  diagnosisTimeout: '後端沒有在規定時間內回應',
+  diagnosisBadEndpoint: '位址能連上，但對面不是這個 API，或者路徑寫錯了',
+  diagnosisOffline: '瀏覽器目前處於離線狀態，請檢查網路連線',
+  diagnosisCorsBlocked:
+    '後端能連上，但瀏覽器按同源策略攔下了回應：後端沒有放行當前來源（CORS）。請在核心設定裡設置 external-controller-cors',
+  diagnosisMixedContent:
+    '瀏覽器攔下了這次請求：HTTPS 頁面不能存取 HTTP 後端。請用 HTTP 開啟面板，或者給 API 配上 HTTPS',
+  diagnosisMixedContentOrUnreachable:
+    '後端連不上 —— 也可能後端是好的，只是瀏覽器不允許 HTTPS 頁面存取 HTTP 後端；可以試著用 HTTP 開啟面板',
+  diagnosisUnreachable: '後端連不上，請檢查位址與連接埠是否正確、核心是否在執行',
 
   // Backend settings
   ipv6Test: 'IPv6 測試',
@@ -430,7 +460,6 @@ const zhTW: LANG_MESSAGE = {
   toggleSidebar: '展開/收起側邊欄',
   switchToPreviousBackend: '切換到上一個後端',
   switchToNextBackend: '切換到下一個後端',
-  openBackendSettings: '開啟後端設定',
   keyboardShortcutsConflict: '偵測到重複快捷鍵：{keys}。只有第一項會生效。',
   resetKeyboardShortcuts: '重設快捷鍵',
   pressAnyKey: '按下任意鍵',
@@ -476,7 +505,9 @@ const zhTW: LANG_MESSAGE = {
   topologyCollapse: '還原拓撲畫面',
   editBackend: '編輯後端',
   editBackendTitle: '修改後端配置',
-  selectBackend: '選擇後端',
+  addBackend: '新增後端',
+  manageBackends: '管理後端',
+  noBackendYet: '還沒有後端',
   backendConnectionFailed: '後端連接失敗，請檢查配置資訊',
   backendConfigSaved: '後端配置儲存成功',
   saveFailed: '儲存失敗',

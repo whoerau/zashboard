@@ -164,12 +164,49 @@
 
 /* ---------- 杂项 ---------- */
 
+.app-toast {
+  animation: appToastIn 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.app-toast.is-leaving {
+  animation: appToastOut 0.16s ease-in both;
+}
+
+@keyframes appToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes appToastOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(0.5rem) scale(0.98);
+  }
+}
+
 @keyframes progressBar {
   from {
     width: 100%;
   }
   to {
     width: 0%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-toast,
+  .app-toast.is-leaving {
+    animation-duration: 0.01ms;
   }
 }
 

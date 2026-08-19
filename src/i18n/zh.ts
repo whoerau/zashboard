@@ -17,7 +17,6 @@ const zh: LANG_MESSAGE = {
   backendType: '后端类型',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: '无法连接 sing-box API',
   skip: '跳过',
   // 工具页
   networkQuality: '网络质量',
@@ -104,6 +103,18 @@ const zh: LANG_MESSAGE = {
   fontFamily: '字体',
   fontSize: '字体大小',
   defaultFont: '默认',
+
+  // Taildrop
+  taildropSendFiles: '发送文件',
+  taildropSending: '发送中',
+  taildropReceiving: '接收中',
+  taildropFiles: '已接收文件',
+  taildropEmpty: '暂无文件',
+  taildropTo: '发往 {name}',
+  taildropFrom: '来自 {name}',
+  taildropFileCount: '{count} 个文件',
+  taildropDropHint: '拖拽文件到此发送，或点击选择',
+  deleteAll: '全部删除',
 
   // USB/IP
   usbip: 'USB/IP',
@@ -287,6 +298,7 @@ const zh: LANG_MESSAGE = {
   truncateProxyName: '截断节点名称',
   disableProxiesPageTextSelect: '禁用代理页文字选中',
   sourceIPLabels: '源IP标签',
+  resolveClientHostname: '反向解析源 IP 主机名',
   proxyPreviewType: '节点预览类型',
   auto: '自动',
   dots: '点',
@@ -327,9 +339,27 @@ const zh: LANG_MESSAGE = {
   secondaryPathTip: '如果有的话以/开头，没有则留空不填',
   logRetentionLimit: '日志保留条数',
   DNSQuery: 'DNS 查询',
-  currentBackendUnavailable: '当前后端不可用，尝试切换到其他后端?',
   confirm: '确定',
-  backendSwitchTo: '已切换后端为{backend}',
+  backendSwitched: '已切换后端',
+  backendConnecting: '正在连接...',
+  backendReachable: '连接正常',
+  backendUnreachable: '连接失败',
+  switchToAnotherBackend: '切换到其他后端',
+  autoSwitchBackend: '切换到第一个可用的后端',
+  noReachableBackend: '其他后端也都连不上',
+
+  // Connection diagnosis
+  diagnosisUnauthorized: '密码不对，后端拒绝了这次请求',
+  diagnosisTimeout: '后端没有在规定时间内响应',
+  diagnosisBadEndpoint: '地址能连上，但对面不是这个 API，或者路径写错了',
+  diagnosisOffline: '浏览器当前处于离线状态，请检查网络连接',
+  diagnosisCorsBlocked:
+    '后端能连上，但浏览器按同源策略拦下了响应：后端没有放行当前来源（CORS）。请在内核配置里设置 external-controller-cors',
+  diagnosisMixedContent:
+    '浏览器拦下了这次请求：HTTPS 页面不能访问 HTTP 后端。请用 HTTP 打开面板，或者给 API 配上 HTTPS',
+  diagnosisMixedContentOrUnreachable:
+    '后端连不上 —— 也可能后端是好的，只是浏览器不允许 HTTPS 页面访问 HTTP 后端；可以试着用 HTTP 打开面板',
+  diagnosisUnreachable: '后端连不上，请检查地址与端口是否正确、内核是否在运行',
 
   // Backend settings
   ipv6Test: 'IPv6 测试',
@@ -430,7 +460,6 @@ const zh: LANG_MESSAGE = {
   toggleSidebar: '展开/收起侧边栏',
   switchToPreviousBackend: '切换到上一个后端',
   switchToNextBackend: '切换到下一个后端',
-  openBackendSettings: '打开后端设置',
   keyboardShortcutsConflict: '检测到重复快捷键：{keys}。只有第一项会生效。',
   resetKeyboardShortcuts: '重置快捷键',
   pressAnyKey: '按下任意键',
@@ -476,7 +505,9 @@ const zh: LANG_MESSAGE = {
   topologyCollapse: '还原拓扑画面',
   editBackend: '编辑后端',
   editBackendTitle: '修改后端配置',
-  selectBackend: '选择后端',
+  addBackend: '添加后端',
+  manageBackends: '管理后端',
+  noBackendYet: '还没有后端',
   backendConnectionFailed: '后端连接失败，请检查配置信息',
   backendConfigSaved: '后端配置保存成功',
   saveFailed: '保存失败',

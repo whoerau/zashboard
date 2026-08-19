@@ -9,6 +9,34 @@
   @apply bg-base-100 overflow-hidden rounded-xl shadow-xs;
 }
 
+@utility floating-menu-panel {
+  @apply border-base-border bg-base-100 text-base-content fixed z-[100000] overflow-y-auto rounded-lg border p-1 shadow-lg;
+}
+
+@utility floating-menu-option {
+  @apply flex cursor-pointer items-center rounded-md px-2 py-1.5 text-sm transition-colors outline-none;
+}
+
+.floating-menu-enter-active,
+.floating-menu-leave-active {
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.floating-menu-enter-from,
+.floating-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-0.25rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-menu-enter-active,
+  .floating-menu-leave-active {
+    transition: none;
+  }
+}
+
 /* ---------- 底部 dock ---------- */
 
 .dock {

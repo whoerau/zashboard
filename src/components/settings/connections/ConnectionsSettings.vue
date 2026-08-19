@@ -9,37 +9,30 @@
         <div class="setting-item-label">
           {{ $t('connectionStyle') }}
         </div>
-        <select
+        <SelectInput
           class="select select-sm min-w-24"
           v-model="connectionDisplayStyle"
-        >
-          <option :value="CONNECTION_DISPLAY_STYLE.AUTO">
-            {{ $t('auto') }}
-          </option>
-          <option :value="CONNECTION_DISPLAY_STYLE.CARD">
-            {{ $t('card') }}
-          </option>
-          <option :value="CONNECTION_DISPLAY_STYLE.TABLE">
-            {{ $t('table') }}
-          </option>
-        </select>
+          :options="[
+            { value: CONNECTION_DISPLAY_STYLE.AUTO, label: $t('auto') },
+            { value: CONNECTION_DISPLAY_STYLE.CARD, label: $t('card') },
+            { value: CONNECTION_DISPLAY_STYLE.TABLE, label: $t('table') },
+          ]"
+        />
       </SettingItem>
       <SettingItem :setting-key="k.proxyChainDirection">
         <div class="setting-item-label">
           {{ $t('proxyChainDirection') }}
         </div>
-        <select
+        <SelectInput
           class="select select-sm w-24"
           v-model="proxyChainDirection"
-        >
-          <option
-            v-for="opt in Object.values(PROXY_CHAIN_DIRECTION)"
-            :key="opt"
-            :value="opt"
-          >
-            {{ $t(opt) }}
-          </option>
-        </select>
+          :options="
+            Object.values(PROXY_CHAIN_DIRECTION).map((value) => ({
+              value,
+              label: $t(value),
+            }))
+          "
+        />
       </SettingItem>
       <SettingItem
         :setting-key="k.tableWidthMode"
@@ -48,18 +41,11 @@
         <div class="setting-item-label">
           {{ $t('tableWidthMode') }}
         </div>
-        <select
+        <SelectInput
           class="select select-sm min-w-24"
           v-model="tableWidthMode"
-        >
-          <option
-            v-for="opt in Object.values(TABLE_WIDTH_MODE)"
-            :key="opt"
-            :value="opt"
-          >
-            {{ $t(opt) }}
-          </option>
-        </select>
+          :options="Object.values(TABLE_WIDTH_MODE).map((value) => ({ value, label: $t(value) }))"
+        />
       </SettingItem>
       <SettingItem
         :setting-key="k.tableSize"
@@ -68,18 +54,24 @@
         <div class="setting-item-label">
           {{ $t('tableSize') }}
         </div>
-        <select
+        <SelectInput
           class="select select-sm min-w-24"
           v-model="tableSize"
-        >
-          <option
-            v-for="opt in Object.values(TABLE_SIZE)"
-            :key="opt"
-            :value="opt"
-          >
-            {{ $t(opt) }}
-          </option>
-        </select>
+          :options="Object.values(TABLE_SIZE).map((value) => ({ value, label: $t(value) }))"
+        />
+      </SettingItem>
+      <SettingItem
+        :setting-key="k.resolveClientHostname"
+        :when="can('dnsQuery')"
+      >
+        <div class="setting-item-label">
+          {{ $t('resolveClientHostname') }}
+        </div>
+        <input
+          type="checkbox"
+          v-model="resolveClientHostname"
+          class="toggle"
+        />
       </SettingItem>
       <SourceIPLabels :setting-key="k.sourceIPLabels" />
     </div>
@@ -87,6 +79,8 @@
 </template>
 
 <script setup lang="ts">
+import { can } from '@/assembly/backend'
+import SelectInput from '@/components/common/SelectInput.vue'
 import SourceIPLabels from '@/components/settings/connections/SourceIPLabels.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
@@ -102,6 +96,7 @@ import {
   connectionDisplayStyle,
   isConnectionCard,
   proxyChainDirection,
+  resolveClientHostname,
   tableSize,
   tableWidthMode,
 } from '@/store/settings'

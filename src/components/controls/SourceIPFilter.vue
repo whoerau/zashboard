@@ -1,27 +1,21 @@
 <template>
-  <select
+  <SelectInput
     class="select select-sm"
     v-model="sourceIPFilter"
-  >
-    <option :value="null">{{ $t('all') }}</option>
-    <option
-      v-for="opt in sourceIPOpts"
-      :key="opt.value.join(',')"
-      :value="opt.value"
-    >
-      {{ opt.label }}
-    </option>
-  </select>
+    :options="[{ value: null, label: $t('all') }, ...sourceIPOpts]"
+  />
 </template>
 
 <script setup lang="ts">
 import { lanDeviceResolver } from '@/assembly/rules'
+import SelectInput from '@/components/common/SelectInput.vue'
 import { getConnectionSourceIP } from '@/helper'
+import { reverseDNSRevision } from '@/helper/reverseDns'
 import { buildSourceIPOptions } from '@/helper/sourceIPFilter'
 import { getIPLabelFromMap } from '@/helper/sourceip'
-import { sourceIPLabelList } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
 import { connections, sourceIPFilter } from '@/store/connections'
+import { resolveClientHostname, sourceIPLabelList } from '@/store/settings'
+import { activeBackend, activeUuid } from '@/store/setup'
 import * as ipaddr from 'ipaddr.js'
 import { isEqual, uniq } from 'lodash'
 import { computed, ref, watch } from 'vue'
@@ -52,6 +46,7 @@ const sourceIPs = computed(() => {
   })
 })
 const sourceIPOpts = ref<{ label: string; value: string[] }[]>([])
+const sourceIPsKey = computed(() => sourceIPs.value.join('\u0000'))
 const manualSourceIPLabels = computed(() =>
   sourceIPLabelList.value.map(({ key, label, scope }) => ({ key, label, scope })),
 )
@@ -67,10 +62,18 @@ watch(
 
 // do not use computed here for firefox
 watch(
-  [sourceIPs, lanDeviceResolver, manualSourceIPLabels, activeBackend],
-  ([value]) => {
+  [
+    sourceIPsKey,
+    lanDeviceResolver,
+    manualSourceIPLabels,
+    activeBackend,
+    reverseDNSRevision,
+    resolveClientHostname,
+    activeUuid,
+  ],
+  () => {
     const options = buildSourceIPOptions({
-      sourceIPs: value,
+      sourceIPs: sourceIPs.value,
       sourceIPLabels: manualSourceIPLabels.value,
       activeBackendID: activeBackend.value?.uuid,
       resolveLanDevice: lanDeviceResolver.value,

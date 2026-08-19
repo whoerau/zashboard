@@ -59,18 +59,11 @@
         <div class="setting-item-label">
           {{ $t('numberOfChartsInSidebar') }}
         </div>
-        <select
+        <SelectInput
           class="select select-sm min-w-24"
           v-model="numberOfChartsInSidebar"
-        >
-          <option
-            v-for="opt in [1, 2, 3]"
-            :key="opt"
-            :value="opt"
-          >
-            {{ opt }}
-          </option>
-        </select>
+          :options="[1, 2, 3].map((value) => ({ value, label: String(value) }))"
+        />
       </SettingItem>
     </div>
   </div>
@@ -78,6 +71,7 @@
 
 <script setup lang="ts">
 import SettingItem from '@/components/settings/SettingItem.vue'
+import SelectInput from '@/components/common/SelectInput.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { getItemKeysByCategory, OVERVIEW_ITEM_KEYS } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'

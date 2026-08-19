@@ -15,7 +15,6 @@ const en = {
   backendType: 'Backend Type',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: 'Failed to connect to the sing-box API',
   skip: 'Skip',
   // Tools page
   networkQuality: 'Network Quality',
@@ -102,6 +101,18 @@ const en = {
   fontFamily: 'Font Family',
   fontSize: 'Font Size',
   defaultFont: 'Default',
+
+  // Taildrop
+  taildropSendFiles: 'Send files',
+  taildropSending: 'Sending',
+  taildropReceiving: 'Receiving',
+  taildropFiles: 'Received files',
+  taildropEmpty: 'No files',
+  taildropTo: 'To {name}',
+  taildropFrom: 'From {name}',
+  taildropFileCount: '{count} file | {count} files',
+  taildropDropHint: 'Drop files here to send, or click to select',
+  deleteAll: 'Delete all',
 
   // USB/IP
   usbip: 'USB/IP',
@@ -286,6 +297,7 @@ const en = {
   truncateProxyName: 'Truncate proxy name',
   disableProxiesPageTextSelect: 'Disable text selection on proxies page',
   sourceIPLabels: 'Source IP labels',
+  resolveClientHostname: 'Resolve source IP hostnames',
   proxyPreviewType: 'Proxy preview type',
   auto: 'Auto',
   dots: 'Dots',
@@ -326,10 +338,28 @@ const en = {
   secondaryPathTip: 'If present, start with "/", otherwise leave empty.',
   logRetentionLimit: 'Log retention limit',
   DNSQuery: 'DNS query',
-  currentBackendUnavailable:
-    'The current backend is unavailable. Would you like to switch to another backend?',
   confirm: 'Confirm',
-  backendSwitchTo: 'Switched backend to {backend}',
+  backendSwitched: 'Backend switched',
+  backendConnecting: 'Connecting...',
+  backendReachable: 'Connected',
+  backendUnreachable: 'Connection failed',
+  switchToAnotherBackend: 'Switch to another backend',
+  autoSwitchBackend: 'Switch to the first reachable backend',
+  noReachableBackend: 'None of the other backends are reachable.',
+
+  // Connection diagnosis
+  diagnosisUnauthorized: 'Wrong password: the backend rejected the credentials.',
+  diagnosisTimeout: 'The backend did not respond in time.',
+  diagnosisBadEndpoint: 'the address is reachable but is not this API, or the path is wrong.',
+  diagnosisOffline: 'The browser is offline; check your network connection.',
+  diagnosisCorsBlocked:
+    'The backend is reachable, but the browser blocked the response: the backend does not allow this origin (CORS). Set external-controller-cors in the core config.',
+  diagnosisMixedContent:
+    'The browser blocked the request: an HTTPS page cannot access an HTTP backend. Open the dashboard over HTTP, or serve the API over HTTPS.',
+  diagnosisMixedContentOrUnreachable:
+    'The backend is unreachable — or, if it is running, the browser blocked this HTTPS page from accessing the HTTP backend; try opening the dashboard over HTTP.',
+  diagnosisUnreachable:
+    'The backend is unreachable; check that the address and port are correct and that the core is running.',
 
   // Backend settings
   ipv6Test: 'IPv6 test',
@@ -435,7 +465,6 @@ const en = {
   toggleSidebar: 'Toggle sidebar',
   switchToPreviousBackend: 'Switch to previous backend',
   switchToNextBackend: 'Switch to next backend',
-  openBackendSettings: 'Open backend settings',
   keyboardShortcutsConflict:
     'Duplicate shortcuts detected: {keys}. Only the first one will take effect.',
   resetKeyboardShortcuts: 'Reset shortcuts',
@@ -485,7 +514,9 @@ const en = {
   topologyCollapse: 'Restore topology view',
   editBackend: 'Edit backend',
   editBackendTitle: 'Edit backend configuration',
-  selectBackend: 'Select backend',
+  addBackend: 'Add backend',
+  manageBackends: 'Manage backends',
+  noBackendYet: 'No backend yet',
   backendConnectionFailed: 'Backend connection failed. Please check your configuration.',
   backendConfigSaved: 'Backend configuration saved successfully',
   saveFailed: 'Save failed',

@@ -126,7 +126,7 @@
               height: `${virtualRow.size}px`,
               transform: `translateY(${virtualRow.start - index * virtualRow.size}px)`,
             }"
-            class="hover:bg-primary! hover:text-primary-content!"
+            class="hover:bg-primary/85! hover:text-primary-content!"
             :class="[
               virtualRow.index % 2 === 0 ? 'bg-base-150' : 'bg-base-100',
               !isDragging ? 'cursor-pointer' : 'cursor-grabbing',
@@ -227,6 +227,8 @@ import {
 } from '@/helper'
 import { backgroundImage } from '@/helper/indexeddb'
 import { showNotification } from '@/helper/notification'
+import { notifyRequestError } from '@/helper/requestError'
+import { useStorage } from '@/helper/storage'
 import {
   connectionFilter,
   connectionTabShow,
@@ -269,7 +271,6 @@ import {
   type SortingState,
 } from '@tanstack/vue-table'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { useStorage } from '@vueuse/core'
 import dayjs from 'dayjs'
 import { twMerge } from 'tailwind-merge'
 import { computed, h, ref, type VNode } from 'vue'
@@ -335,7 +336,7 @@ const columns: ColumnDef<Connection>[] = [
             const connection = row.original
 
             e.stopPropagation()
-            disconnectByIdAPI(connection.id)
+            disconnectByIdAPI(connection.id).catch(notifyRequestError)
           },
         },
         [
@@ -354,7 +355,7 @@ const columns: ColumnDef<Connection>[] = [
               const connection = row.original
 
               e.stopPropagation()
-              blockConnectionByIdAPI(connection.id)
+              blockConnectionByIdAPI(connection.id).catch(notifyRequestError)
             },
           },
           [

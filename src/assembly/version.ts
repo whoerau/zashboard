@@ -10,6 +10,7 @@ import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import SingBoxLogo from '@/assets/images/sing-box.svg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
 import { createGenerationGuard } from '@/helper/generationGuard'
+import { getRequestErrorMessage } from '@/helper/requestError'
 import {
   FORK_UI_COMPARE_API_URL,
   FORK_UI_RELEASE_API_URL,
@@ -24,12 +25,24 @@ import {
 import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { apiVersion, can, Channel, channel, core, Core, resetCore } from './backend'
 
 export const version = ref()
 export const isCoreUpdateAvailable = ref(false)
 export const zashboardVersion = ref(__APP_VERSION__)
+
+// 切后端时本来就要打一次 /version,顺手把它的结果暴露成连通性状态,
+// 给切换提示用 —— 不额外发探测请求,量的也正是实际在用的那条 API。
+export type BackendProbe = {
+  uuid: string
+  status: 'probing' | 'connected' | 'failed'
+  // 拿到 /version 响应的耗时(ms),failed 时无意义。
+  latency: number
+  message: string
+}
+
+export const backendProbe = ref<BackendProbe | undefined>()
 
 // sing-box 内核启动时刻(ms epoch);0 表示未知 / 当前后端无此能力。
 // 仅 sing-box API(GetStartedAt)提供,Clash /version 无运行时长。
@@ -128,6 +141,7 @@ const resetVersionState = () => {
 let probe: Promise<void> = Promise.resolve()
 
 const probeBackend = async (backend: Backend, generation: number) => {
+  const startAt = Date.now()
   const isCurrentRequest = () =>
     versionRequestGuard.isCurrent(generation) && activeBackend.value?.uuid === backend.uuid
 
@@ -138,6 +152,12 @@ const probeBackend = async (backend: Backend, generation: number) => {
     version.value = runtime.version
     core.value = detectCore(runtime.version)
     apiVersion.value = runtime.apiVersion
+    backendProbe.value = {
+      uuid: backend.uuid,
+      status: 'connected',
+      latency: Date.now() - startAt,
+      message: '',
+    }
 
     const backendStartedAt = can('startedAt') ? await fetchSingboxStartedAt() : 0
     if (!isCurrentRequest()) return
@@ -163,25 +183,36 @@ const probeBackend = async (backend: Backend, generation: number) => {
     if (!isCurrentRequest()) return
 
     resetVersionState()
+    backendProbe.value = {
+      uuid: backend.uuid,
+      status: 'failed',
+      latency: 0,
+      message: getRequestErrorMessage(error),
+    }
     console.warn('Failed to fetch backend version', error)
   }
 }
 
 export const coreReady = async () => {
-  // 先让 activeBackend 的 watcher 跑完,确保拿到的是新后端的探测,而非上一次的残留。
+  // 先让会话的 watcher 跑完,确保拿到的是新后端的探测,而非上一次的残留。
   await nextTick()
   await probe
 }
 
-watch(
-  activeBackend,
-  (val) => {
-    const generation = versionRequestGuard.next()
-    resetVersionState()
-    probe = val ? probeBackend(val, generation) : Promise.resolve()
-  },
-  { immediate: true },
-)
+// 由 assembly/session 在每次会话开始时调用:先把上一个后端的结论清干净,
+// 再对当前后端重新探测。返回的 promise 只给 coreReady 用,调用方不必等。
+export const probeActiveBackend = () => {
+  const backend = activeBackend.value
+  const generation = versionRequestGuard.next()
+
+  resetVersionState()
+  backendProbe.value = backend
+    ? { uuid: backend.uuid, status: 'probing', latency: 0, message: '' }
+    : undefined
+
+  probe = backend ? probeBackend(backend, generation) : Promise.resolve()
+  return probe
+}
 
 const CACHE_DURATION = 1000 * 60 * 60
 

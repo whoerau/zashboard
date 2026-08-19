@@ -4,9 +4,10 @@
 import { can, Channel, channel } from '@/assembly/backend'
 import { NOT_CONNECTED, PROXY_TAB_TYPE, PROXY_TYPE, TEST_URL } from '@/constant'
 import { LAN_DEVICE_STORAGE_KEYS } from '@/helper/lanDevice'
+import { notifyRequestError } from '@/helper/requestError'
+import { useStorage } from '@/helper/storage'
 import { groupTestUrls, independentLatencyTest, speedtestUrl } from '@/store/settings'
 import type { Proxy, ProxyProvider } from '@/types'
-import { useStorage } from '@vueuse/core'
 import { last } from 'lodash'
 import { computed, ref } from 'vue'
 
@@ -52,7 +53,7 @@ export const getLatencyByName = (proxyName: string, groupName?: string) => {
 }
 
 export const getHistoryByName = (proxyName: string, groupName?: string) => {
-  if (independentLatencyTest.value && can('independentLatency')) {
+  if (groupName && independentLatencyTest.value && can('independentLatency')) {
     const proxyNode = proxyMap.value[proxyName]
     const url = getTestUrl(groupName)
 
@@ -151,8 +152,15 @@ const load = (): Promise<ProxiesBackend> =>
 
 export const fetchProxies = async () => (await load()).fetchProxies()
 
-export const handlerProxySelect = async (proxyGroupName: string, proxyName: string) =>
-  (await load()).handlerProxySelect(proxyGroupName, proxyName)
+// 切换节点只会由用户点击触发,且调用点都是模板里的 @click(没有 catch 的落点),
+// 所以在门面里兜住:失败弹提示,否则 UI 会停在旧选择上一声不吭。
+export const handlerProxySelect = async (proxyGroupName: string, proxyName: string) => {
+  try {
+    return await (await load()).handlerProxySelect(proxyGroupName, proxyName)
+  } catch (e) {
+    notifyRequestError(e)
+  }
+}
 
 export const proxyLatencyTest = async (
   proxyName: string,

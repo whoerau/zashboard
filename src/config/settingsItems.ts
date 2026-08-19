@@ -187,6 +187,10 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       },
       { key: `${SETTINGS_MENU_KEY.connections}.tableWidthMode`, label: 'tableWidthMode' },
       { key: `${SETTINGS_MENU_KEY.connections}.tableSize`, label: 'tableSize' },
+      {
+        key: `${SETTINGS_MENU_KEY.connections}.resolveClientHostname`,
+        label: 'resolveClientHostname',
+      },
       { key: `${SETTINGS_MENU_KEY.connections}.sourceIPLabels`, label: 'sourceIPLabels' },
     ],
   },

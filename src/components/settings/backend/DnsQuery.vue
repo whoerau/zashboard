@@ -79,9 +79,10 @@
 <script lang="ts" setup>
 import { queryDNSAPI } from '@/assembly/config'
 import { getIPInfo, type IPInfo } from '@/api/geoip'
+import { notifyRequestError } from '@/helper/requestError'
+import { useStorage } from '@/helper/storage'
 import type { DNSQuery } from '@/types'
 import { MapPinIcon, ServerIcon } from '@heroicons/vue/24/outline'
-import { useStorage } from '@vueuse/core'
 import { reactive, ref } from 'vue'
 import TextInput from '../../common/TextInput.vue'
 
@@ -120,16 +121,16 @@ const saveQueryName = (name: string) => {
 const query = async () => {
   saveQueryName(form.name)
 
-  const { data } = await queryDNSAPI(form)
+  try {
+    const { data } = await queryDNSAPI(form)
 
-  resultList.value = data.Answer
+    resultList.value = data.Answer
 
-  const ipAnswer = resultList.value?.find(({ type }) => type === 1 || type === 28)
+    const ipAnswer = resultList.value?.find(({ type }) => type === 1 || type === 28)
 
-  if (ipAnswer) {
-    details.value = await getIPInfo(ipAnswer.data)
-  } else {
-    details.value = null
+    details.value = ipAnswer ? await getIPInfo(ipAnswer.data) : null
+  } catch (e) {
+    notifyRequestError(e)
   }
 }
 </script>

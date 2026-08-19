@@ -192,15 +192,15 @@ const options = computed<EChartOption>(() => ({
   backgroundColor: 'transparent',
   textStyle: {
     fontFamily: fontFamily.value || 'inherit',
-    color: colors.baseContent,
+    color: colors.text,
   },
   tooltip: {
     trigger: 'item',
     triggerOn: 'mousemove',
-    backgroundColor: colors.base70,
-    borderColor: colors.baseContent30,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     textStyle: {
-      color: colors.baseContent,
+      color: colors.text,
     },
     formatter: (params: unknown) => {
       const { dataType, data } = params as {
@@ -256,7 +256,7 @@ const options = computed<EChartOption>(() => ({
         borderWidth: 0,
       },
       label: {
-        color: colors.baseContent,
+        color: colors.text,
         fontSize: isMiddleScreen.value ? 10 : 12,
         formatter: (params: { name: string }) => {
           const maxLength = isFullScreen.value ? 45 : isMiddleScreen.value ? 20 : 30

@@ -78,18 +78,11 @@
             @mouseenter="showTip($event, $t('IPInfoAPITip'))"
           />
         </div>
-        <select
+        <SelectInput
           class="select select-sm min-w-24"
           v-model="IPInfoAPI"
-        >
-          <option
-            v-for="opt in Object.values(IP_INFO_API)"
-            :key="opt"
-            :value="opt"
-          >
-            {{ opt }}
-          </option>
-        </select>
+          :options="Object.values(IP_INFO_API).map((value) => ({ value, label: value }))"
+        />
       </SettingItem>
       <SettingItem :setting-key="k.geoipCountryDatabaseURL">
         <div class="setting-item-label">
@@ -203,6 +196,7 @@ import { can, showDisplayAllFeatures } from '@/assembly/backend'
 import { canUseCoreUIUpdater, lanRulesManifestStatus } from '@/assembly/rules'
 import { upgradeUIAPI } from '@/assembly/version'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
+import SelectInput from '@/components/common/SelectInput.vue'
 import KeyboardShortcutsSettings from '@/components/settings/general/KeyboardShortcutsSettings.vue'
 import LanguageSelect from '@/components/settings/general/LanguageSelect.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
@@ -211,6 +205,7 @@ import { useIsSettingVisible } from '@/composables/settings'
 import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
 import { IP_INFO_API } from '@/constant'
 import { handlerUpgradeSuccess } from '@/helper'
+import { notifyRequestError } from '@/helper/requestError'
 import { useTooltip } from '@/helper/tooltip'
 import { isMiddleScreen } from '@/helper/utils'
 import { twMerge } from 'tailwind-merge'
@@ -269,9 +264,8 @@ const handlerClickUpgradeUI = async () => {
     setTimeout(() => {
       window.location.reload()
     }, 1000)
-  } catch {
-    // Request errors are surfaced by the shared HTTP notification path.
-    // 请求错误由共享 HTTP 通知链路展示。
+  } catch (e) {
+    notifyRequestError(e)
   } finally {
     isUIUpgrading.value = false
   }

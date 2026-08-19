@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { updateConfigsAPI } from '@/assembly/config'
 import { showNotification } from '@/helper/notification'
+import { notifyRequestError } from '@/helper/requestError'
 import { fetchConfigs } from '@/assembly/config'
 import { fetchProxies } from '@/assembly/proxies'
 import { fetchRules } from '@/assembly/rules'
@@ -87,8 +88,8 @@ const handleUpdateConfigs = async () => {
       content: 'updateConfigsSuccess',
       type: 'alert-success',
     })
-  } catch {
-    // error handled by axios interceptor
+  } catch (e) {
+    notifyRequestError(e)
   } finally {
     isUpdating.value = false
   }

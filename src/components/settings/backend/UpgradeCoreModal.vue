@@ -45,6 +45,7 @@
 <script setup lang="ts">
 import { upgradeCoreAPI } from '@/assembly/version'
 import { handlerUpgradeSuccess } from '@/helper'
+import { notifyRequestError } from '@/helper/requestError'
 import { fetchConfigs } from '@/assembly/config'
 import { fetchProxies } from '@/assembly/proxies'
 import { fetchRules } from '@/assembly/rules'
@@ -70,9 +71,9 @@ const handlerClickUpgradeCore = async (type: 'release' | 'alpha' | 'auto') => {
     reloadAll()
     modalValue.value = false
     handlerUpgradeSuccess()
-    isCoreUpgrading.value = false
   } catch (e) {
-    console.error(e)
+    notifyRequestError(e)
+  } finally {
     isCoreUpgrading.value = false
   }
 }

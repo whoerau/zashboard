@@ -50,6 +50,7 @@ import { useRouter } from 'vue-router'
 import CtrlsBar from '../common/CtrlsBar.vue'
 import DialogWrapper from '../common/DialogWrapper.vue'
 import SegmentedControl from '../common/SegmentedControl.vue'
+import SelectInput from '../common/SelectInput.vue'
 import TextInput from '../common/TextInput.vue'
 
 const LAN_GROUP_PREFIX = 'lan/'
@@ -124,8 +125,7 @@ export default defineComponent({
       return every(modeList.value, (mode) => defaultModes.includes(mode.toLowerCase()))
     })
 
-    const handlerModeChange = (e: Event) => {
-      const mode = (e.target as HTMLSelectElement).value
+    const handlerModeChange = (mode: string) => {
       updateConfigs({ mode })
       if (can('disconnectOnModeChange') && automaticDisconnection.value) {
         activeConnections.value.forEach((connection) => {
@@ -193,39 +193,27 @@ export default defineComponent({
         </button>
       )
       const modeSelect = configs.value && (
-        <select
+        <SelectInput
           class={['select select-sm', isLargeCtrlsBar.value ? 'min-w-40' : 'min-w-24']}
-          v-model={configs.value.mode}
-          onChange={handlerModeChange}
-        >
-          {modeList.value.map((mode) => {
-            return (
-              <option
-                key={mode}
-                value={mode}
-              >
-                {needTranslateModes.value ? t(mode.toLowerCase()) : mode}
-              </option>
-            )
-          })}
-        </select>
+          modelValue={configs.value.mode}
+          onUpdate:modelValue={(value) => (configs.value!.mode = value as string)}
+          onChange={(value) => handlerModeChange(value as string)}
+          options={modeList.value.map((value) => ({
+            value,
+            label: needTranslateModes.value ? t(value.toLowerCase()) : value,
+          }))}
+        />
       )
       const sort = (
-        <select
+        <SelectInput
           class={['select select-sm']}
-          v-model={proxySortType.value}
-        >
-          {Object.values(PROXY_SORT_TYPE).map((type) => {
-            return (
-              <option
-                key={type}
-                value={type}
-              >
-                {t(type)}
-              </option>
-            )
-          })}
-        </select>
+          modelValue={proxySortType.value}
+          onUpdate:modelValue={(value) => (proxySortType.value = value as PROXY_SORT_TYPE)}
+          options={Object.values(PROXY_SORT_TYPE).map((value) => ({
+            value,
+            label: t(value),
+          }))}
+        />
       )
 
       const latencyTestAll = (
@@ -399,7 +387,6 @@ export default defineComponent({
                   </div>
                 </div>
               </div>
-              <div class="divider m-0"></div>
               <button
                 class="btn btn-block"
                 onClick={() => {

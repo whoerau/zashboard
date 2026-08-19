@@ -8,15 +8,16 @@
         {{ t('earthGlobeTitle') }}
       </div>
       <div class="flex items-center gap-1">
-        <select
+        <SelectInput
           v-model="earthVisualMode"
           class="select select-ghost select-sm h-8 min-h-8 w-auto border-0"
           :aria-label="t('earthVisualStyle')"
           :title="t('earthVisualStyle')"
-        >
-          <option value="space">{{ t('earthVisualStyle_space') }}</option>
-          <option value="flat">{{ t('earthVisualStyle_flat') }}</option>
-        </select>
+          :options="[
+            { value: 'space', label: t('earthVisualStyle_space') },
+            { value: 'flat', label: t('earthVisualStyle_flat') },
+          ]"
+        />
         <button
           class="btn btn-ghost btn-sm btn-square"
           :aria-label="t(showCityLabels ? 'earthHideCityLabels' : 'earthShowCityLabels')"
@@ -81,14 +82,15 @@
       />
 
       <div class="pointer-events-none absolute top-2 right-2 left-2 flex flex-wrap gap-1.5 text-xs">
-        <select
+        <SelectInput
           v-model="earthOriginSource"
           class="select select-sm bg-base-100/75 pointer-events-auto h-8 min-h-8 w-auto rounded-lg border-0 shadow backdrop-blur-md"
           :aria-label="t('earthOriginAPI')"
-        >
-          <option value="china">ipip.info</option>
-          <option value="global">ip.sb</option>
-        </select>
+          :options="[
+            { value: 'china', label: 'ipip.info' },
+            { value: 'global', label: 'ip.sb' },
+          ]"
+        />
 
         <div
           class="bg-base-100/75 pointer-events-auto flex h-8 items-center gap-1.5 rounded-lg px-2 shadow backdrop-blur-md"
@@ -305,6 +307,7 @@
 </template>
 
 <script setup lang="ts">
+import SelectInput from '@/components/common/SelectInput.vue'
 import { getIPFromIpipnetAPI, getIPFromIpsbAPI } from '@/api/geoip'
 import { ipForChina, ipForGlobal } from '@/composables/overview'
 import { themeColorScheme } from '@/helper/theme'
