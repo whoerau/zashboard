@@ -85,7 +85,7 @@ import {
 import type { ChartTooltipParam } from '@/components/charts/chartTypes'
 import { can } from '@/assembly/backend'
 import { prettyBytesHelper } from '@/helper/utils'
-import { activeConnections, downloadTotal, uploadTotal } from '@/store/connections'
+import { downloadTotal, overviewActiveConnections, uploadTotal } from '@/store/connections'
 import {
   connectionsHistory,
   downloadSpeed,
@@ -111,7 +111,7 @@ const ulSpeedParts = computed(() => splitBytes(uploadSpeed.value))
 const dlSpeedParts = computed(() => splitBytes(downloadSpeed.value))
 const ulTotalStr = computed(() => prettyBytesHelper(uploadTotal.value))
 const dlTotalStr = computed(() => prettyBytesHelper(downloadTotal.value))
-const connectionCount = computed(() => activeConnections.value.length)
+const connectionCount = computed(() => overviewActiveConnections.value.length)
 const memoryStr = computed(() => prettyBytesHelper(memory.value, { binary: true }))
 
 const speedLabelFormatter = (value: number) => {

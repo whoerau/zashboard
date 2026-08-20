@@ -269,6 +269,8 @@ const zhTW: LANG_MESSAGE = {
   updated: '更新於',
   upgradeDashboard: '升級面板',
   dashboardUpgradeCheckingLanRules: '正在檢查受管 LAN 規則，暫不可升級面板',
+  lanDeviceRules: 'LAN 裝置規則',
+  lanDeviceGroups: 'LAN 裝置群組',
   dashboardUpgradeManagedLanRules:
     '為保留 lan-rules.json，已停用內建升級；請執行 whoerctl zashboard update',
   reloadConfigs: '重載配置',

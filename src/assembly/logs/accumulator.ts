@@ -53,6 +53,25 @@ export const createLogsAccumulator = (
     { immediate: true, deep: true },
   )
 
+  const labelPayload = (payload: string) => {
+    let labeled = labelLanDeviceIPsInLog(payload, lanDeviceResolver.value)
+    for (const [regex, label] of ipSourceMatchs) {
+      labeled = labeled.replace(regex, label)
+    }
+    return labeled
+  }
+
+  const relabelStoredLogs = () => {
+    if (logsTemp.length) {
+      logsTemp = logsTemp.map((log) => ({ ...log, payload: labelPayload(log.payload) }))
+    }
+    if (logs.value.length) {
+      logs.value = logs.value.map((log) => ({ ...log, payload: labelPayload(log.payload) }))
+    }
+  }
+
+  const stopResolverWatch = watch(lanDeviceResolver, relabelStoredLogs)
+
   const push = (batch: Log[]) => {
     for (const data of batch) {
       // 暂停时丢弃该条但仍推进 seq,与既有行为一致。
@@ -61,16 +80,9 @@ export const createLogsAccumulator = (
         continue
       }
 
-      // LAN device labels take precedence over manually configured IP labels.
-      // LAN 设备标签优先于手动配置的 IP 标签。
-      let payload = labelLanDeviceIPsInLog(data.payload, lanDeviceResolver.value)
-      for (const [regex, label] of ipSourceMatchs) {
-        payload = payload.replace(regex, label)
-      }
-
       logsTemp.unshift({
         ...data,
-        payload,
+        payload: labelPayload(data.payload),
         time: dayjs().format('HH:mm:ss'),
         seq: idx++,
       })
@@ -83,6 +95,7 @@ export const createLogsAccumulator = (
     push,
     dispose: () => {
       stopWatch()
+      stopResolverWatch()
       flush.cancel()
     },
   }

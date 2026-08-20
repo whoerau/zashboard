@@ -12,7 +12,7 @@ import {
   proxyProviederList,
   updateProxyProviderAPI,
 } from '@/assembly/proxies'
-import { renderProxiesPageItems } from '@/composables/proxies'
+import { filteredProxyGroups, renderProxiesPageItems } from '@/composables/proxies'
 import { isProxyNodeSearchMode, toggleProxySearchMode } from '@/composables/proxySearch'
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { PROXY_SORT_TYPE, PROXY_TAB_TYPE, ROUTE_NAME, SETTINGS_MENU_KEY } from '@/constant'
@@ -167,7 +167,9 @@ export default defineComponent({
           type,
           count:
             type === PROXY_TAB_TYPE.PROXIES
-              ? proxyGroupList.value.length
+              ? proxiesDevice.value
+                ? filteredProxyGroups.value.length
+                : proxyGroupList.value.length
               : proxyProviederList.value.length,
         }
       })
@@ -278,7 +280,7 @@ export default defineComponent({
         proxiesTabShow.value === PROXY_TAB_TYPE.PROXIES && lanDevices.value.length ? (
           <select
             class="select select-sm bg-base-200/60 border-base-300 h-9 min-h-9 w-32 max-w-40"
-            title="LAN device groups"
+            title={t('lanDeviceGroups')}
             value={selectedLanDevice.value}
             onChange={handlerLanDeviceChange}
           >

@@ -18,10 +18,10 @@ import {
   parseLanRulesManifest,
 } from '@/helper/lanRulesManifest'
 import { toSearchRegex } from '@/helper/search'
+import { useStorage } from '@/helper/storage'
 import { getUrlFromBackend } from '@/helper/utils'
 import { activeBackend } from '@/store/setup'
 import type { Rule, RuleProvider } from '@/types'
-import { useStorage } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
 const EMPTY_LAN_RULES_MANIFEST: LanRulesManifest = {
@@ -179,40 +179,50 @@ export const fetchRules = async () => {
     ? fetchLanRulesManifest(backendURL)
     : Promise.resolve(undefined)
 
-  const [snapshot, manifest] = await Promise.all([
-    (await load(requestChannel)).fetchRules(),
-    manifestRequest,
-  ])
-  const isCurrent =
+  const isCurrentRequest = () =>
     rulesRequestGuard.isCurrent(generation) &&
     channel.value === requestChannel &&
     currentBackendKey.value === backendKey
-  if (!isCurrent) return
 
-  rulesSnapshot.value = snapshot.rules
-  ruleProviderSnapshot.value = snapshot.ruleProviderList
-  rulesSnapshotKey.value = requestSnapshotKey
+  try {
+    const [snapshot, manifest] = await Promise.all([
+      (await load(requestChannel)).fetchRules(),
+      manifestRequest,
+    ])
+    if (!isCurrentRequest()) return
 
-  if (manifest && isLanRulesManifestForRules(manifest, snapshot.rules)) {
-    lanRulesManifest.value = manifest
-    lanRulesManifestSnapshotKey.value = requestSnapshotKey
-    rulesDevice.value = resolveRulesDeviceSelection(
-      rulesDevice.value,
-      manifest.devices.map((device) => device.name),
-    )
-    lanRulesManifestStatus.value = manifest.devices.length ? 'active' : 'inactive'
-    return
+    rulesSnapshot.value = snapshot.rules
+    ruleProviderSnapshot.value = snapshot.ruleProviderList
+    rulesSnapshotKey.value = requestSnapshotKey
+
+    if (manifest && isLanRulesManifestForRules(manifest, snapshot.rules)) {
+      lanRulesManifest.value = manifest
+      lanRulesManifestSnapshotKey.value = requestSnapshotKey
+      rulesDevice.value = resolveRulesDeviceSelection(
+        rulesDevice.value,
+        manifest.devices.map((device) => device.name),
+      )
+      lanRulesManifestStatus.value = manifest.devices.length ? 'active' : 'inactive'
+      return
+    }
+
+    const canKeepPrevious =
+      lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
+      isLanRulesManifestForRules(lanRulesManifest.value, snapshot.rules)
+    if (!canKeepPrevious) {
+      lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
+      lanRulesManifestSnapshotKey.value = ''
+    }
+    lanRulesManifestStatus.value =
+      canKeepPrevious && lanRulesManifest.value.devices.length ? 'active' : 'inactive'
+  } catch {
+    if (!isCurrentRequest()) return
+    lanRulesManifestStatus.value =
+      lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
+      lanRulesManifest.value.devices.length
+        ? 'active'
+        : 'inactive'
   }
-
-  const canKeepPrevious =
-    lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
-    isLanRulesManifestForRules(lanRulesManifest.value, snapshot.rules)
-  if (!canKeepPrevious) {
-    lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
-    lanRulesManifestSnapshotKey.value = ''
-  }
-  lanRulesManifestStatus.value =
-    canKeepPrevious && lanRulesManifest.value.devices.length ? 'active' : 'inactive'
 }
 
 export const toggleRuleDisabled = (rule: Rule, disabled: boolean) =>

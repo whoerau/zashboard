@@ -88,7 +88,7 @@ const getManualIPLabel = (ip: string): string | null => {
 
   if (addr) {
     for (const { cidr, label } of sourceIPCIDRList) {
-      if (addr.match(cidr)) {
+      if (addr.kind() === cidr[0].kind() && addr.match(cidr)) {
         return cacheResult(ip, label)
       }
     }

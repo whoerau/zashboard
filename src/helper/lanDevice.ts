@@ -31,35 +31,36 @@ export const sortLanDeviceNames = (devices: readonly string[]) =>
     return a.localeCompare(b)
   })
 
-export const isProxyGroupInLanDeviceScope = (name: string, device: string) =>
-  Boolean(device && name.startsWith(`lan/${device}/`))
-
 export const getLanDeviceFromScopedProxyName = (name: string) =>
   name.match(/^lan\/([^/]+)\//)?.[1] ?? ''
 
-export const getLanDeviceScopedProxyName = (name: string, device: string) => {
-  if (!device) return name
-  const prefix = `lan/${device}/`
-  return name.startsWith(prefix) ? name.slice(prefix.length) : name
-}
+export const isProxyGroupInLanDeviceScope = (name: string, device: string) =>
+  Boolean(device && getLanDeviceFromScopedProxyName(name) === device)
+
+export const getLanDeviceScopedProxyName = (name: string, device: string) =>
+  isProxyGroupInLanDeviceScope(name, device) ? name.slice(`lan/${device}/`.length) : name
+
+const extractSourceCidrsFromPayload = (payload: string) =>
+  [...payload.matchAll(/SRC-IP-CIDR6?\s*,\s*([^,\s)]+)/gi)].map((match) => match[1])
 
 export const createLanDeviceResolver = (rules: readonly LanSourceRule[]): LanDeviceResolver => {
   const compiled = rules.flatMap((rule) => {
     const device = rule.proxy.match(/^lan\/([^/]+)$/)?.[1]
-    const customSource = rule.payload.match(
-      /^\(\s*SRC-IP-CIDR6?\s*,\s*([^,\s)]+)(?:\s*,\s*no-resolve)?\s*\)$/i,
-    )?.[1]
+    if (!device) return []
+
     const type = rule.type?.replace(/[^a-z0-9]/gi, '').toUpperCase()
     const rawSource =
       type === 'SRCIPCIDR' || type === 'SRCIPCIDR6' ? rule.payload.split(',')[0]?.trim() : undefined
-    const source = customSource || rawSource
-    if (!device || !source) return []
+    const sources = new Set(extractSourceCidrsFromPayload(rule.payload))
+    if (rawSource) sources.add(rawSource)
 
-    try {
-      return [{ device, cidr: ipaddr.parseCIDR(source.trim()) }]
-    } catch {
-      return []
-    }
+    return [...sources].flatMap((source) => {
+      try {
+        return [{ device, cidr: ipaddr.parseCIDR(source.trim()) }]
+      } catch {
+        return []
+      }
+    })
   })
   const cache = new Map<string, string | undefined>()
 

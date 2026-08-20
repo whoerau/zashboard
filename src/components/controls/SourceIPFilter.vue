@@ -17,7 +17,7 @@ import { connections, sourceIPFilter } from '@/store/connections'
 import { resolveClientHostname, sourceIPLabelList } from '@/store/settings'
 import { activeBackend, activeUuid } from '@/store/setup'
 import * as ipaddr from 'ipaddr.js'
-import { isEqual, uniq } from 'lodash'
+import { uniq } from 'lodash'
 import { computed, ref, watch } from 'vue'
 
 const sourceIPs = computed(() => {
@@ -51,15 +51,6 @@ const manualSourceIPLabels = computed(() =>
   sourceIPLabelList.value.map(({ key, label, scope }) => ({ key, label, scope })),
 )
 
-// A source selection belongs to one backend and must never leak into another.
-// 来源筛选只属于当前后端，切换后不得沿用。
-watch(
-  () => activeBackend.value?.uuid,
-  (backendID, previousBackendID) => {
-    if (backendID !== previousBackendID) sourceIPFilter.value = null
-  },
-)
-
 // do not use computed here for firefox
 watch(
   [
@@ -91,7 +82,9 @@ watch(
           label: currentLabel,
           value: sourceIPFilter.value,
         })
-      } else if (!isEqual(current.value, sourceIPFilter.value)) {
+      } else {
+        // Share the option array so SelectInput's Object.is selection stays in sync.
+        // 与 option 共用同一数组引用，避免 SelectInput 的 Object.is 在重建后丢选中态。
         sourceIPFilter.value = current.value
       }
     }

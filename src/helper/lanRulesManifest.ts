@@ -1,3 +1,5 @@
+import { isProxyGroupInLanDeviceScope } from './lanDevice.ts'
+
 export type LanRuleBinding = {
   sourceIndex: number
   sourceProxy: string
@@ -79,7 +81,8 @@ export const parseLanRulesManifest = (value: unknown): LanRulesManifest => {
     // Allow shared passthrough policies or this device's cloned selectors only.
     // 仅允许共享直通策略或当前设备的克隆选择器。
     const hasInvalidProxy = device.rules.some(
-      ({ sourceProxy, proxy }) => proxy !== sourceProxy && !proxy.startsWith(`lan/${device.name}/`),
+      ({ sourceProxy, proxy }) =>
+        proxy !== sourceProxy && !isProxyGroupInLanDeviceScope(proxy, device.name),
     )
     return (
       device.subRule !== `lan/${device.name}` ||
@@ -136,7 +139,8 @@ export const isLanRulesManifestForRules = (
       rules.some((rule) => rule.type === 'SubRules' && rule.proxy === device.subRule) &&
       device.rules.every(({ sourceIndex, sourceProxy, proxy }) => {
         const source = byIndex.get(sourceIndex)
-        const proxyIsDeviceScoped = proxy === sourceProxy || proxy.startsWith(`lan/${device.name}/`)
+        const proxyIsDeviceScoped =
+          proxy === sourceProxy || isProxyGroupInLanDeviceScope(proxy, device.name)
         return source?.proxy === sourceProxy && proxyIsDeviceScoped
       }),
   )

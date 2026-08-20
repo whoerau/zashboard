@@ -1,6 +1,6 @@
 import { fetchMemoryAPI, fetchTrafficAPI } from '@/assembly/overview'
 import { ref, watch } from 'vue'
-import { activeConnections, downloadTotal, uploadTotal } from './connections'
+import { downloadTotal, overviewActiveConnections, uploadTotal } from './connections'
 
 export interface HistoryPoint {
   name: number
@@ -59,7 +59,7 @@ export const initSatistic = () => {
         name: timestamp,
       })
       connectionsHistory.value.push({
-        value: [timestamp, activeConnections.value.length],
+        value: [timestamp, overviewActiveConnections.value.length],
         name: timestamp,
       })
 

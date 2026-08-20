@@ -46,13 +46,26 @@ export const normalizeSourceIP = (ip: string) => {
     : address.toString()
 }
 
-export const createSourceIPFilterMatcher = (sourceIPs: readonly string[] | null) => {
+export const createSourceIPFilterMatcher = (
+  sourceIPs: readonly string[] | null,
+  resolveLanDevice?: (ip: string) => string | undefined,
+) => {
   if (sourceIPs === null) return () => true
 
   // Normalize mapped IPv4 so backend wire formats share one filter identity.
   // 规范化 IPv4-mapped 地址，使不同后端格式共享同一筛选身份。
   const normalizedSourceIPs = new Set(sourceIPs.map(normalizeSourceIP))
-  return (ip: string) => normalizedSourceIPs.has(normalizeSourceIP(ip))
+  const devices = new Set<string>()
+  for (const ip of sourceIPs) {
+    const device = resolveLanDevice?.(ip)
+    if (device) devices.add(device)
+  }
+
+  return (ip: string) => {
+    if (normalizedSourceIPs.has(normalizeSourceIP(ip))) return true
+    const device = resolveLanDevice?.(ip)
+    return Boolean(device && devices.has(device))
+  }
 }
 
 export const buildSourceIPOptions = ({

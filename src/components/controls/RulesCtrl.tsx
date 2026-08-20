@@ -113,7 +113,7 @@ export default defineComponent({
         rulesTabShow.value === RULE_TAB_TYPE.RULES && lanRulesDevices.value.length ? (
           <select
             class="select select-sm bg-base-200/60 border-base-300 h-9 min-h-9 w-32 max-w-40"
-            title="LAN device rules"
+            title={t('lanDeviceRules')}
             value={rulesDevice.value}
             onChange={(event) => {
               rulesDevice.value = (event.target as HTMLSelectElement).value

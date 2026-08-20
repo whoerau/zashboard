@@ -149,14 +149,99 @@ test('keeps device-scoped table rules read-only and uses their visible positions
 })
 
 test('resets the source IP filter when the active backend changes', () => {
+  const source = readFileSync(new URL('../src/store/connections.ts', import.meta.url), 'utf8')
+
+  assert.match(
+    source,
+    /activeBackend\.value\?\.uuid[\s\S]*?backendID !== previousBackendID[\s\S]*?sourceIPFilter\.value = null/,
+  )
+})
+
+test('clears LAN rules checking state when rule fetch fails', () => {
+  const source = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /import \{ useStorage \} from '@\/helper\/storage'/)
+  assert.doesNotMatch(source, /from '@vueuse\/core'/)
+  assert.match(source, /catch \{[\s\S]*!isCurrentRequest\(\)[\s\S]*lanRulesManifestStatus\.value =/)
+})
+
+test('shares rebuilt source IP option arrays with the selected filter', () => {
   const source = readFileSync(
     new URL('../src/components/controls/SourceIPFilter.vue', import.meta.url),
     'utf8',
   )
 
+  assert.match(source, /sourceIPFilter\.value = current\.value/)
+  assert.doesNotMatch(source, /isEqual\(current\.value, sourceIPFilter\.value\)/)
+})
+
+test('overview cards share one connection-filter source', () => {
+  const connections = readFileSync(new URL('../src/store/connections.ts', import.meta.url), 'utf8')
+  const charts = readFileSync(
+    new URL('../src/components/overview/ChartsCard.vue', import.meta.url),
+    'utf8',
+  )
+  const history = readFileSync(
+    new URL('../src/components/overview/ConnectionHistory.vue', import.meta.url),
+    'utf8',
+  )
+  const globe = readFileSync(
+    new URL('../src/components/overview/EarthGlobeCard.vue', import.meta.url),
+    'utf8',
+  )
+  const topology = readFileSync(
+    new URL('../src/components/overview/TopologyCharts.vue', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(connections, /export const overviewActiveConnections = computed/)
+  assert.match(charts, /overviewActiveConnections\.value\.length/)
+  assert.match(history, /overviewActiveConnections\.value/)
+  assert.match(globe, /overviewActiveConnections/)
+  assert.match(topology, /overviewActiveConnections\.value\.flatMap/)
+})
+
+test('relabels in-memory logs when the LAN device resolver changes', () => {
+  const source = readFileSync(
+    new URL('../src/assembly/logs/accumulator.ts', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(source, /watch\(lanDeviceResolver, relabelStoredLogs\)/)
+})
+
+test('skips CIDR labels whose address family does not match', () => {
+  const source = readFileSync(new URL('../src/helper/sourceip.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /addr\.kind\(\) === cidr\[0\]\.kind\(\) && addr\.match\(cidr\)/)
+})
+
+test('translates LAN device control titles', () => {
+  const rules = readFileSync(
+    new URL('../src/components/controls/RulesCtrl.tsx', import.meta.url),
+    'utf8',
+  )
+  const proxies = readFileSync(
+    new URL('../src/components/controls/ProxiesCtrl.tsx', import.meta.url),
+    'utf8',
+  )
+  const en = readFileSync(new URL('../src/i18n/en.ts', import.meta.url), 'utf8')
+
+  assert.match(rules, /title=\{t\('lanDeviceRules'\)\}/)
+  assert.match(proxies, /title=\{t\('lanDeviceGroups'\)\}/)
+  assert.match(en, /lanDeviceRules: 'LAN device rules'/)
+  assert.match(en, /lanDeviceGroups: 'LAN device groups'/)
+})
+
+test('counts device-scoped proxy groups in the Proxies tab badge', () => {
+  const source = readFileSync(
+    new URL('../src/components/controls/ProxiesCtrl.tsx', import.meta.url),
+    'utf8',
+  )
+
   assert.match(
     source,
-    /activeBackend\.value\?\.uuid[\s\S]*?backendID !== previousBackendID[\s\S]*?sourceIPFilter\.value = null/,
+    /proxiesDevice\.value\s*\?\s*filteredProxyGroups\.value\.length\s*:\s*proxyGroupList\.value\.length/,
   )
 })
 
@@ -268,6 +353,22 @@ test('accepts manifests only for the matching backend rule snapshot', () => {
     false,
   )
   assert.equal(isLanRulesManifestForRules({ ...manifest, ruleCount: 3 }, rules), false)
+  assert.throws(
+    () =>
+      parseLanRulesManifest({
+        version: 2,
+        ruleCount: 2,
+        rulesDigest: createLanRulesDigest(rules, [1]),
+        devices: [
+          {
+            name: 'iphone14',
+            subRule: 'lan/iphone14',
+            rules: [{ sourceIndex: 1, sourceProxy: 'GLOBAL', proxy: 'lan/iphone14pm/GLOBAL' }],
+          },
+        ],
+      }),
+    /invalid LAN rules manifest/,
+  )
 })
 
 test('loads a LAN rules manifest only from the active backend origin', () => {

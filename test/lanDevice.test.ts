@@ -29,6 +29,19 @@ test('resolves LAN devices from source CIDR sub-rules', () => {
   assert.equal(getLanDeviceName('Inner', rules), undefined)
 })
 
+test('resolves nested AND/OR source CIDR identity rules', () => {
+  const rules = [
+    {
+      proxy: 'lan/phone',
+      payload: '(OR,(SRC-IP-CIDR,192.168.50.94/32),(SRC-IP-CIDR6,2001:db8::5/128))',
+    },
+  ]
+
+  assert.equal(getLanDeviceName('192.168.50.94', rules), 'phone')
+  assert.equal(getLanDeviceName('2001:db8::5', rules), 'phone')
+  assert.equal(getLanDeviceName('192.168.50.1', rules), undefined)
+})
+
 test('resolves raw source CIDRs, no-resolve, and IPv4-mapped sources', () => {
   const rules = [
     {
@@ -66,6 +79,8 @@ test('restores only valid LAN device scopes', () => {
   assert.equal(getValidLanDevice('removed', ['iphone14pm', 'solana']), '')
   assert.equal(isProxyGroupInLanDeviceScope('lan/iphone14pm/GLOBAL', 'iphone14pm'), true)
   assert.equal(isProxyGroupInLanDeviceScope('lan/iphone14/GLOBAL', 'iphone14pm'), false)
+  assert.equal(isProxyGroupInLanDeviceScope('lan/iphone14pm/GLOBAL', 'iphone14'), false)
+  assert.equal(isProxyGroupInLanDeviceScope('lan/w-nas/GLOBAL', 'w'), false)
 })
 
 test('keeps Proxies and Rules device persistence independent', () => {
@@ -88,6 +103,10 @@ test('formats scoped LAN proxy names only for the matching device', () => {
   assert.equal(
     getLanDeviceScopedProxyName('lan/ipad-mini/🔰 节点选择', 'iphone14pm'),
     'lan/ipad-mini/🔰 节点选择',
+  )
+  assert.equal(
+    getLanDeviceScopedProxyName('lan/iphone14pm/GLOBAL', 'iphone14'),
+    'lan/iphone14pm/GLOBAL',
   )
 })
 

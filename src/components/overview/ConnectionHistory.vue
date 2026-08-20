@@ -199,7 +199,7 @@ import {
   clearConnectionHistory,
   mergeAggregatedData,
 } from '@/store/connHistory'
-import { activeConnections } from '@/store/connections'
+import { overviewActiveConnections } from '@/store/connections'
 import {
   ArrowDownCircleIcon,
   ArrowUpCircleIcon,
@@ -244,7 +244,7 @@ const aggregationType = useStorage<ConnectionHistoryType>(
 )
 const historicalData = computed(() => aggregatedDataMap.value[aggregationType.value])
 const connectionHistoryView = computed(() => {
-  const currentData = aggregateConnections(activeConnections.value, aggregationType.value)
+  const currentData = aggregateConnections(overviewActiveConnections.value, aggregationType.value)
   const mergedData = mergeAggregatedData(historicalData.value, currentData)
 
   return buildConnectionHistoryView(

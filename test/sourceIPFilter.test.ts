@@ -32,6 +32,18 @@ test('matches IPv4 and IPv4-mapped source addresses as one filter identity', () 
   assert.equal(matchesSourceIP('192.168.50.95'), false)
 })
 
+test('matches newly seen addresses of the same LAN device', () => {
+  const matchesSourceIP = createSourceIPFilterMatcher(['192.168.50.94'], (ip) =>
+    ip === '192.168.50.94' || ip === '2001:db8::94' || ip === '::ffff:192.168.50.94'
+      ? 'phone'
+      : undefined,
+  )
+
+  assert.equal(matchesSourceIP('2001:db8::94'), true)
+  assert.equal(matchesSourceIP('192.168.50.95'), false)
+  assert.equal(matchesSourceIP('10.0.0.1'), false)
+})
+
 test('does not add a manual IPv4 duplicate for a live mapped source', () => {
   const options = buildSourceIPOptions({
     sourceIPs: ['::ffff:192.168.50.94'],

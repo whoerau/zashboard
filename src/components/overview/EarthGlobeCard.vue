@@ -259,7 +259,11 @@
         class="pointer-events-none absolute inset-0 flex items-center justify-center p-4"
       >
         <div class="bg-base-100/75 rounded-xl px-4 py-3 text-sm shadow backdrop-blur-md">
-          {{ activeConnections.length ? t('earthNoLocatedConnections') : t('earthNoConnections') }}
+          {{
+            overviewActiveConnections.length
+              ? t('earthNoLocatedConnections')
+              : t('earthNoConnections')
+          }}
         </div>
       </div>
     </div>
@@ -310,7 +314,7 @@ import { getCachedPublicIPInfo } from '@/composables/overview'
 import { IP_INFO_API } from '@/constant'
 import { themeColorScheme } from '@/helper/theme'
 import { prettyBytesHelper } from '@/helper/utils'
-import { activeConnections } from '@/store/connections'
+import { overviewActiveConnections } from '@/store/connections'
 import { earthIPInfoAPI, earthVisualMode, language, theme } from '@/store/settings'
 import {
   ArrowPathIcon,
@@ -421,7 +425,7 @@ const showRetry = computed(
     originStatus.value === 'error' ||
     (databaseStatus.value === 'ready' &&
       routeCount.value === 0 &&
-      activeConnections.value.length > 0),
+      overviewActiveConnections.value.length > 0),
 )
 const showNoData = computed(
   () =>
@@ -486,7 +490,7 @@ const refreshRoutes = async () => {
     }
 
     routesLoading.value = true
-    const snapshot = activeConnections.value
+    const snapshot = overviewActiveConnections.value
     const routeOriginIP = originIP.value
     const routeOriginRequestID = originRequestID
     const preferredOrigin: EarthLocationHint | null =
@@ -632,7 +636,7 @@ const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && expanded.value) expanded.value = false
 }
 
-watch(activeConnections, scheduleRouteRefresh)
+watch(overviewActiveConnections, scheduleRouteRefresh)
 watch(earthIPInfoAPI, () => void loadOrigin())
 watch(language, () => {
   locationCache.clear()

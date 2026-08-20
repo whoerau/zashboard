@@ -104,7 +104,7 @@ import { createLanDeviceResolver, getLanDeviceDisplayName } from '@/helper/lanDe
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { shouldRenderTopologySource } from '@/helper/topology'
 import { isMiddleScreen } from '@/helper/utils'
-import { activeConnections, filteredActiveConnections } from '@/store/connections'
+import { overviewActiveConnections } from '@/store/connections'
 import {
   blurIntensity,
   dashboardTransparent,
@@ -162,10 +162,7 @@ const chartSurfaceStyle = computed<CSSProperties>(() => {
 const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
 const topologyData = computed(() =>
   buildTopologyData(
-    (topologyApplyConnectionFilter.value
-      ? filteredActiveConnections.value
-      : activeConnections.value
-    ).flatMap((connection) => {
+    overviewActiveConnections.value.flatMap((connection) => {
       const source = getConnectionSourceIP(connection)
       if (!shouldRenderTopologySource(source)) return []
 

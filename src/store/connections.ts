@@ -3,6 +3,7 @@ import {
   fetchConnectionsAPI,
   getConnectionVisibleSearchValues,
 } from '@/assembly/connections'
+import { lanDeviceResolver } from '@/assembly/rules'
 import { CONNECTION_TAB_TYPE, SORT_DIRECTION, SORT_TYPE } from '@/constant'
 import {
   getChainsStringFromConnection,
@@ -32,7 +33,9 @@ import {
   isConnectionCard,
   proxyChainDirection,
   showFullProxyChain,
+  topologyApplyConnectionFilter,
 } from './settings'
+import { activeBackend } from './setup'
 
 export const connectionTabShow = ref(CONNECTION_TAB_TYPE.ACTIVE)
 export const connectionSortType = useStorage<SORT_TYPE>(
@@ -48,6 +51,13 @@ export const quickFilterRegex = useStorage<string>('config/quick-filter-regex', 
 export const quickFilterEnabled = useStorage<boolean>('config/quick-filter-enabled', false)
 export const connectionFilter = ref('')
 export const sourceIPFilter = ref<string[] | null>(null)
+
+watch(
+  () => activeBackend.value?.uuid,
+  (backendID, previousBackendID) => {
+    if (backendID !== previousBackendID) sourceIPFilter.value = null
+  },
+)
 
 // 每拍整体换引用、元素不可变的管道:深 ref 会为每拍数千个一次性对象建 Proxy 与依赖记录,
 // shallowRef 才是与该数据流语义吻合的粒度。
@@ -173,7 +183,7 @@ export const isClosedConnection = (connection: Connection) =>
 const filterConnections = (items: readonly Connection[]) => {
   const searchRegex = toSearchRegex(connectionFilter.value)
   const hideRegex = quickFilterEnabled.value ? toSearchRegex(quickFilterRegex.value) : null
-  const matchesSourceIP = createSourceIPFilterMatcher(sourceIPFilter.value)
+  const matchesSourceIP = createSourceIPFilterMatcher(sourceIPFilter.value, lanDeviceResolver.value)
   // 无正则过滤时跳过搜索串构建:那是每拍每连接十余次字符串/dayjs 分配的大头
   const needSearchValues = Boolean(searchRegex || hideRegex)
   const displayOptions = {
@@ -212,6 +222,10 @@ const filterConnections = (items: readonly Connection[]) => {
 // the connections view. Keep this separate from `renderConnections`, whose source depends on the
 // selected active/closed/all tab.
 export const filteredActiveConnections = computed(() => filterConnections(activeConnections.value))
+
+export const overviewActiveConnections = computed(() =>
+  topologyApplyConnectionFilter.value ? filteredActiveConnections.value : activeConnections.value,
+)
 
 export const renderConnections = computed(() => {
   const filtered = filterConnections(connections.value)
