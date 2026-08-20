@@ -13,20 +13,19 @@
 -->
 <template>
   <div :class="compact ? 'flex-none' : 'w-full'">
-    <!-- 折叠的侧边栏只剩一列图标,状态点叠在图标角上 —— 不展开也能看出当前后端活没活。 -->
+    <!--
+      折叠的侧边栏只剩一列图标,状态就不在这儿表了:一列小按钮里再挤进一个状态点
+      (或者给图标上色)只是噪声,想知道通不通展开列表就有。这里只保留入口和名字。
+    -->
     <button
       v-if="compact"
       ref="triggerRef"
-      class="btn btn-circle btn-sm relative"
+      class="btn btn-circle btn-sm"
       :aria-label="$t('backend')"
       @click="toggle"
       @mouseenter="showLabelTip"
     >
       <ServerIcon class="h-5 w-5" />
-      <span
-        class="ring-base-100 absolute right-0.5 bottom-0.5 h-2 w-2 rounded-full ring-2"
-        :class="compactDotClass"
-      ></span>
     </button>
 
     <button
@@ -61,12 +60,13 @@
         <div
           v-if="isOpen"
           ref="panelRef"
-          class="border-base-border bg-base-100 fixed z-[100000] flex flex-col gap-1 overflow-hidden rounded-lg border p-1 shadow-lg"
+          class="border-base-border bg-base-100 fixed z-[998] flex flex-col gap-1 overflow-hidden rounded-lg border p-1 shadow-lg"
           :style="panelStyle"
         >
           <div
             v-if="backendList.length"
             class="flex min-h-0 flex-col gap-1 overflow-y-auto"
+            @mouseenter="closeActions"
           >
             <button
               v-for="backend in backendList"
@@ -97,11 +97,58 @@
           ></div>
 
           <button
+            v-if="menuActions.length"
+            ref="actionsTriggerRef"
+            class="flex flex-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors"
+            :class="isActionsOpen ? 'bg-base-200' : 'hover:bg-base-200'"
+            :aria-expanded="isActionsOpen"
+            @click="toggleActions"
+            @pointerenter="hoverOpenActions"
+          >
+            <WrenchScrewdriverIcon class="h-4 w-4 flex-none opacity-60" />
+            <span class="min-w-0 flex-1 truncate">{{ $t('actions') }}</span>
+            <ChevronRightIcon class="h-4 w-4 flex-none opacity-50" />
+          </button>
+
+          <button
             class="hover:bg-base-200 flex flex-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors"
             @click="manage"
+            @mouseenter="closeActions"
           >
             <Cog6ToothIcon class="h-4 w-4 flex-none opacity-60" />
             {{ backendList.length ? $t('manageBackends') : $t('addBackend') }}
+          </button>
+        </div>
+      </Transition>
+
+      <!--
+        二级菜单单独 teleport 一层,而不是塞进一级面板里:一级面板自己是 fixed
+        且带 overflow,嵌在里面的横向展开会被它自己裁掉。
+      -->
+      <Transition name="backend-switch">
+        <div
+          v-if="isOpen && isActionsOpen"
+          ref="actionsPanelRef"
+          class="border-base-border bg-base-100 fixed z-[998] flex flex-col gap-1 overflow-y-auto rounded-lg border p-1 shadow-lg"
+          :style="actionsPanelStyle"
+        >
+          <button
+            v-for="action in menuActions"
+            :key="action.key"
+            class="hover:bg-base-200 flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors disabled:opacity-50"
+            :disabled="action.running"
+            @click="runAction(action)"
+          >
+            <span
+              v-if="action.running"
+              class="loading loading-spinner h-4 w-4 flex-none"
+            ></span>
+            <component
+              v-else
+              :is="action.icon"
+              class="h-4 w-4 flex-none opacity-60"
+            />
+            <span class="whitespace-nowrap">{{ $t(action.label) }}</span>
           </button>
         </div>
       </Transition>
@@ -111,6 +158,7 @@
 
 <script setup lang="ts">
 import BackendStatusDot from '@/components/common/BackendStatusDot.vue'
+import { menuBackendActions, type BackendAction } from '@/composables/backendActions'
 import { useBackendListProbe } from '@/composables/backendListProbe'
 import { useTooltip } from '@/helper/tooltip'
 import { getLabelFromBackend } from '@/helper/utils'
@@ -121,19 +169,40 @@ import {
   openBackendManager,
   setActiveBackend,
 } from '@/store/setup'
-import { ChevronUpDownIcon, Cog6ToothIcon, ServerIcon } from '@heroicons/vue/24/outline'
-import { computed, onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
+import {
+  ChevronRightIcon,
+  ChevronUpDownIcon,
+  Cog6ToothIcon,
+  ServerIcon,
+  WrenchScrewdriverIcon,
+} from '@heroicons/vue/24/outline'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
 
 const GAP = 4
 const MIN_WIDTH = 224
+const ACTIONS_MIN_WIDTH = 176
 const VIEWPORT_PADDING = 8
 
-withDefaults(defineProps<{ compact?: boolean }>(), { compact: false })
+const props = withDefaults(
+  defineProps<{
+    compact?: boolean
+    /** 设置页里这些动作本来就成排摆着,菜单里不必再来一遍 */
+    showActions?: boolean
+  }>(),
+  { compact: false, showActions: true },
+)
 
 const triggerRef = ref<HTMLButtonElement>()
 const panelRef = ref<HTMLDivElement>()
 const isOpen = ref(false)
 const panelStyle = ref<CSSProperties>({})
+
+const actionsTriggerRef = ref<HTMLButtonElement>()
+const actionsPanelRef = ref<HTMLDivElement>()
+const isActionsOpen = ref(false)
+const actionsPanelStyle = ref<CSSProperties>({})
+
+const menuActions = computed(() => (props.showActions ? menuBackendActions.value : []))
 
 // Teleport 的目标是挂载本组件的 #app-content,首帧还不在 DOM 里。
 const isReady = ref(false)
@@ -142,23 +211,8 @@ const isReady = ref(false)
 const { stateOf } = useBackendListProbe(isOpen)
 
 // 当前后端的状态不依赖展开:stateOf 会优先用会话自己的探测结果(backendProbe),
-// 所以折叠状态下那个点也一直是准的。
+// 所以展开态那个点一亮出来就是准的,不用等这一轮探测跑完。
 const activeState = computed(() => stateOf.value(activeUuid.value || ''))
-
-const compactDotClass = computed(() => {
-  if (!activeBackend.value) return 'bg-base-content/25'
-
-  switch (activeState.value.status) {
-    case 'online':
-      return 'bg-success'
-    case 'offline':
-      return 'bg-error'
-    case 'checking':
-      return 'bg-warning animate-pulse'
-    default:
-      return 'bg-base-content/25'
-  }
-})
 
 const { showTip } = useTooltip()
 
@@ -194,11 +248,85 @@ const updatePosition = () => {
   }
 }
 
+// 二级菜单挂在触发行的右侧(右边挤不下就翻到左边),纵向跟触发行齐平并夹在视口内。
+const updateActionsPosition = () => {
+  const anchor = actionsTriggerRef.value
+
+  if (!anchor) return
+
+  const rect = anchor.getBoundingClientRect()
+  const panelRect = actionsPanelRef.value?.getBoundingClientRect()
+  const width = Math.max(panelRect?.width ?? 0, ACTIONS_MIN_WIDTH)
+  const spaceRight = window.innerWidth - rect.right - GAP - VIEWPORT_PADDING
+  const spaceLeft = rect.left - GAP - VIEWPORT_PADDING
+  const flipLeft = spaceRight < width && spaceLeft > spaceRight
+  const left = flipLeft
+    ? Math.max(rect.left - GAP - width, VIEWPORT_PADDING)
+    : Math.min(
+        rect.right + GAP,
+        Math.max(window.innerWidth - width - VIEWPORT_PADDING, VIEWPORT_PADDING),
+      )
+  const maxHeight = window.innerHeight - VIEWPORT_PADDING * 2
+  const height = Math.min(panelRect?.height ?? 0, maxHeight)
+
+  actionsPanelStyle.value = {
+    left: `${left}px`,
+    top: `${Math.min(
+      Math.max(rect.top - VIEWPORT_PADDING / 2, VIEWPORT_PADDING),
+      Math.max(window.innerHeight - VIEWPORT_PADDING - height, VIEWPORT_PADDING),
+    )}px`,
+    minWidth: `${ACTIONS_MIN_WIDTH}px`,
+    maxHeight: `${maxHeight}px`,
+  }
+}
+
+// 一级面板的位置一变,挂在它上面的二级菜单也得跟着走 —— 但要等这一帧渲染完,
+// 触发行的新坐标才量得到。
+const updatePositions = () => {
+  updatePosition()
+  if (isActionsOpen.value) nextTick(updateActionsPosition)
+}
+
+const closeActions = () => {
+  isActionsOpen.value = false
+}
+
+const openActions = () => {
+  if (!menuActions.value.length || isActionsOpen.value) return
+
+  // 首帧还量不到面板自己的宽高,先按下限摆一次,渲染完再按实际尺寸收边。
+  updateActionsPosition()
+  isActionsOpen.value = true
+  nextTick(updateActionsPosition)
+}
+
+const toggleActions = () => (isActionsOpen.value ? closeActions() : openActions())
+
+// 触屏上点一下会先补一发 pointerenter 再来 click:两个都当成切换,菜单会刚展开就被收回去。
+// 悬停展开只对鼠标生效,触屏走 click。
+const hoverOpenActions = (event: PointerEvent) => {
+  if (event.pointerType !== 'mouse') return
+  openActions()
+}
+
+const runAction = (action: BackendAction) => {
+  if (action.running) return
+
+  action.run()
+  // 要填参数的动作交给弹窗,菜单让位;就地执行的留着 —— 转圈看得见,也能接着点下一个。
+  if (action.opensModal) close()
+}
+
 const handlePointerDown = (event: PointerEvent) => {
   const target = event.target as Node | null
 
   if (!target) return
-  if (triggerRef.value?.contains(target) || panelRef.value?.contains(target)) return
+  if (
+    triggerRef.value?.contains(target) ||
+    panelRef.value?.contains(target) ||
+    actionsPanelRef.value?.contains(target)
+  )
+    return
 
   close()
 }
@@ -211,8 +339,8 @@ const handleKeydown = (event: KeyboardEvent) => {
 const listen = (add: boolean) => {
   const fn = add ? window.addEventListener : window.removeEventListener
 
-  fn('scroll', updatePosition, true)
-  fn('resize', updatePosition)
+  fn('scroll', updatePositions, true)
+  fn('resize', updatePositions)
   fn('pointerdown', handlePointerDown as EventListener, true)
   fn('keydown', handleKeydown as EventListener)
 }
@@ -221,6 +349,7 @@ function close() {
   if (!isOpen.value) return
 
   isOpen.value = false
+  closeActions()
   listen(false)
 }
 

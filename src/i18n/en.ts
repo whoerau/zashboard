@@ -291,6 +291,8 @@ const en = {
   backend: 'Backend',
   tunMode: 'TUN mode',
   upgradeCore: 'Upgrade core',
+  upgradeCoreConfirm:
+    'Upgrade the core now? The core will restart and the proxy service will be briefly interrupted.',
   upgradeToRelease: 'Upgrade to stable release',
   upgradeToAlpha: 'Upgrade to alpha release',
   updateGeoDatabase: 'Update GEO database',
@@ -331,6 +333,8 @@ const en = {
   emoji: 'Emoji',
   unauthorizedTip: 'Unauthorized, please log in again.',
   restartCore: 'Restart core',
+  restartCoreConfirm:
+    'Restart the core now? The proxy service will be briefly interrupted and existing connections will be dropped.',
   checkCoreUpgrade: 'Check for core upgrades',
   autoUpgradeDashboard: 'Auto-upgrade dashboard',
   autoUpgradeCore: 'Auto-upgrade core',
@@ -496,7 +500,7 @@ const en = {
   flushSmartWeights: 'Clear smart weights',
   IPInfoAPI: 'IP info API',
   IPInfoAPITip:
-    "This API is used to look up global node IP information during IP checks, and for IP geolocation lookups in connection details and zashboard's DNS query feature.",
+    "This API is used for IP geolocation lookups in connection details and zashboard's DNS query feature. IP Check and Earth use their own API selections.",
   general: 'General',
   groupProxiesByProvider: 'Group proxies by provider',
   useSmartGroupSort: 'Sort smart groups by usage frequency',

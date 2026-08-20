@@ -32,138 +32,33 @@
         :setting-key="k.backend"
         class="p-4"
       >
-        <BackendSwitch />
+        <BackendSwitch :show-actions="false" />
       </SettingItem>
 
-      <template v-if="can('coreActions')">
-        <SettingItem
-          :setting-key="k.upgradeCore"
-          :when="can('coreUpgrade') && !activeBackend?.disableUpgradeCore"
+      <SettingItem
+        v-for="action in backendActions"
+        :key="action.key"
+        :setting-key="action.key"
+      >
+        <div class="setting-item-label">
+          {{ $t(action.label) }}
+        </div>
+        <button
+          :class="['btn btn-sm', action.key === k.upgradeCore && 'btn-neutral']"
+          :disabled="action.running"
+          @click="action.run()"
         >
-          <div class="setting-item-label">
-            {{ $t('upgradeCore') }}
-          </div>
-          <button
-            class="btn btn-neutral btn-sm"
-            @click="showUpgradeCoreModal = true"
-          >
-            <ArrowUpCircleIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.restartCore"
-          :when="can('coreRestart')"
-        >
-          <div class="setting-item-label">
-            {{ $t('restartCore') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handlerClickRestartCore"
-          >
-            <span
-              v-if="isCoreRestarting"
-              class="loading loading-spinner h-4 w-4"
-            ></span>
-            <ArrowPathRoundedSquareIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.reloadConfigs"
-          :when="can('reloadConfigs')"
-        >
-          <div class="setting-item-label">
-            {{ $t('reloadConfigs') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handlerClickReloadConfigs"
-          >
-            <span
-              v-if="isConfigReloading"
-              class="loading loading-spinner h-4 w-4"
-            ></span>
-            <ArrowPathIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.updateConfigs"
-          :when="can('updateConfigs')"
-        >
-          <div class="setting-item-label">
-            {{ $t('updateConfigs') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="showUpdateConfigModal = true"
-          >
-            <PencilSquareIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.updateGeoDatabase"
-          :when="can('updateGeoDatabase')"
-        >
-          <div class="setting-item-label">
-            {{ $t('updateGeoDatabase') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handlerClickUpdateGeo"
-          >
-            <span
-              v-if="isGeoUpdating"
-              class="loading loading-spinner h-4 w-4"
-            ></span>
-            <ArrowDownTrayIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
-        </SettingItem>
-        <SettingItem :setting-key="k.flushDNSCache">
-          <div class="setting-item-label">
-            {{ $t('flushDNSCache') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handleFlushDNSCache"
-          >
-            <TrashIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem :setting-key="k.flushFakeIP">
-          <div class="setting-item-label">
-            {{ $t('flushFakeIP') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handleFlushFakeIP"
-          >
-            <TrashIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.flushSmartWeights"
-          :when="hasSmartGroup"
-        >
-          <div class="setting-item-label">
-            {{ $t('flushSmartWeights') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handleFlushSmartWeights"
-          >
-            <TrashIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-      </template>
+          <span
+            v-if="action.running"
+            class="loading loading-spinner h-4 w-4"
+          ></span>
+          <component
+            v-else
+            :is="action.icon"
+            class="h-4 w-4"
+          />
+        </button>
+      </SettingItem>
 
       <SettingItem
         :setting-key="k.DNSQuery"
@@ -251,47 +146,25 @@
         </template>
       </div>
     </div>
-
-    <UpgradeCoreModal v-model="showUpgradeCoreModal" />
-    <UpdateConfigModal v-model="showUpdateConfigModal" />
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  flushDNSCacheAPI,
-  flushFakeIPAPI,
-  reloadConfigsAPI,
-  updateGeoDataAPI,
-} from '@/assembly/config'
-import { coreBrand, isCoreUpdateAvailable, restartCoreAPI } from '@/assembly/version'
+import { can } from '@/assembly/backend'
+import { configs, updateConfigs } from '@/assembly/config'
+import { coreBrand, isCoreUpdateAvailable } from '@/assembly/version'
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import BackendPortsGrid from '@/components/settings/backend/BackendPortsGrid.vue'
 import BackendSwitch from '@/components/settings/backend/BackendSwitch.vue'
 import DnsQuery from '@/components/settings/backend/DnsQuery.vue'
-import { can } from '@/assembly/backend'
 import SettingItem from '@/components/settings/SettingItem.vue'
+import { backendActions } from '@/composables/backendActions'
 import { isSettingVisible, useIsSettingVisible } from '@/composables/settings'
 import { BACKEND_ITEM_KEYS } from '@/config/settingsItems'
-import { showNotification } from '@/helper/notification'
 import { notifyRequestError } from '@/helper/requestError'
-import { fetchProxies, flushSmartGroupWeightsAPI } from '@/assembly/proxies'
-import { configs, fetchConfigs, updateConfigs } from '@/assembly/config'
-import { hasSmartGroup } from '@/assembly/proxies'
-import { fetchRules } from '@/assembly/rules'
 import { autoUpgradeCore, checkUpgradeCore } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
-import {
-  ArrowDownTrayIcon,
-  ArrowPathIcon,
-  ArrowPathRoundedSquareIcon,
-  ArrowUpCircleIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from '@heroicons/vue/24/outline'
-import { computed, ref } from 'vue'
-import UpdateConfigModal from './UpdateConfigModal.vue'
-import UpgradeCoreModal from './UpgradeCoreModal.vue'
+import { computed } from 'vue'
 
 const k = BACKEND_ITEM_KEYS
 const isVisibleBackendSwitch = useIsSettingVisible(k.backend)
@@ -305,26 +178,9 @@ const canShowTunMode = computed(
   () => isVisibleTunMode.value && !activeBackend.value?.disableTunMode,
 )
 
-/** sing-box 内核下只保留 flush 类操作，除非用户开启了「显示全部功能」 */
-/** 当前后端/内核下实际可渲染的操作项 */
-const renderableActionKeys = computed(() => {
-  if (!can('coreActions')) return []
-
-  const keys: string[] = []
-
-  if (can('coreUpgrade') && !activeBackend.value?.disableUpgradeCore) keys.push(k.upgradeCore)
-  if (can('coreRestart')) keys.push(k.restartCore)
-  if (can('reloadConfigs')) keys.push(k.reloadConfigs)
-  if (can('updateConfigs')) keys.push(k.updateConfigs)
-  if (can('updateGeoDatabase')) keys.push(k.updateGeoDatabase)
-  if (can('dnsFlush')) keys.push(k.flushDNSCache)
-  if (can('fakeIPFlush')) keys.push(k.flushFakeIP)
-  if (hasSmartGroup.value) keys.push(k.flushSmartWeights)
-
-  return keys
-})
-
-const hasVisibleActions = computed(() => renderableActionKeys.value.some(isSettingVisible))
+const hasVisibleActions = computed(() =>
+  backendActions.value.some((action) => isSettingVisible(action.key)),
+)
 
 // 派生的「有没有东西可显示」必须和条目自身的门控一致,否则会渲染出空容器。
 const showDnsQuery = computed(() => isVisibleDnsQuery.value && can('dnsQuery'))
@@ -350,71 +206,6 @@ const hasVisibleSettings = computed(() => {
   )
 })
 
-const reloadAll = () => {
-  fetchConfigs()
-  fetchRules()
-  fetchProxies()
-}
-
-const showUpgradeCoreModal = ref(false)
-const showUpdateConfigModal = ref(false)
-
-const isCoreRestarting = ref(false)
-const handlerClickRestartCore = async () => {
-  if (isCoreRestarting.value) return
-  isCoreRestarting.value = true
-  try {
-    await restartCoreAPI()
-    setTimeout(() => {
-      reloadAll()
-    }, 500)
-    showNotification({
-      content: 'restartCoreSuccess',
-      type: 'alert-success',
-    })
-  } catch (e) {
-    notifyRequestError(e)
-  } finally {
-    isCoreRestarting.value = false
-  }
-}
-
-const isConfigReloading = ref(false)
-const handlerClickReloadConfigs = async () => {
-  if (isConfigReloading.value) return
-  isConfigReloading.value = true
-  try {
-    await reloadConfigsAPI()
-    reloadAll()
-    showNotification({
-      content: 'reloadConfigsSuccess',
-      type: 'alert-success',
-    })
-  } catch (e) {
-    notifyRequestError(e)
-  } finally {
-    isConfigReloading.value = false
-  }
-}
-
-const isGeoUpdating = ref(false)
-const handlerClickUpdateGeo = async () => {
-  if (isGeoUpdating.value) return
-  isGeoUpdating.value = true
-  try {
-    await updateGeoDataAPI()
-    reloadAll()
-    showNotification({
-      content: 'updateGeoSuccess',
-      type: 'alert-success',
-    })
-  } catch (e) {
-    notifyRequestError(e)
-  } finally {
-    isGeoUpdating.value = false
-  }
-}
-
 const handlerCheckUpgradeCoreChange = () => {
   if (!checkUpgradeCore.value) {
     autoUpgradeCore.value = false
@@ -432,42 +223,6 @@ const hanlderTunModeChange = async () => {
 const handlerAllowLanChange = async () => {
   try {
     await updateConfigs({ ['allow-lan']: configs.value?.['allow-lan'] })
-  } catch (e) {
-    notifyRequestError(e)
-  }
-}
-
-const handleFlushDNSCache = async () => {
-  try {
-    await flushDNSCacheAPI()
-    showNotification({
-      content: 'flushDNSCacheSuccess',
-      type: 'alert-success',
-    })
-  } catch (e) {
-    notifyRequestError(e)
-  }
-}
-
-const handleFlushFakeIP = async () => {
-  try {
-    await flushFakeIPAPI()
-    showNotification({
-      content: 'flushFakeIPSuccess',
-      type: 'alert-success',
-    })
-  } catch (e) {
-    notifyRequestError(e)
-  }
-}
-
-const handleFlushSmartWeights = async () => {
-  try {
-    await flushSmartGroupWeightsAPI()
-    showNotification({
-      content: 'flushSmartWeightsSuccess',
-      type: 'alert-success',
-    })
   } catch (e) {
     notifyRequestError(e)
   }

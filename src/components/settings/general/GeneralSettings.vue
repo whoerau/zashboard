@@ -81,7 +81,11 @@
         <SelectInput
           class="select select-sm min-w-24"
           v-model="IPInfoAPI"
-          :options="Object.values(IP_INFO_API).map((value) => ({ value, label: value }))"
+          :options="
+            Object.values(IP_INFO_API)
+              .filter((value) => value !== IP_INFO_API.IPIP)
+              .map((value) => ({ value, label: value }))
+          "
         />
       </SettingItem>
       <SettingItem :setting-key="k.geoipCountryDatabaseURL">

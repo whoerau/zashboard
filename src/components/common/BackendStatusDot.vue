@@ -42,7 +42,8 @@ const props = withDefaults(
 const dotClass = computed(() => {
   switch (props.status) {
     case 'online':
-      return 'bg-success'
+      // 用低饱和的 backend-online 而不是 success:这点常驻在列表里,亮绿太吵。
+      return 'bg-backend-online'
     case 'offline':
       return 'bg-error'
     default:

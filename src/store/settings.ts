@@ -1,8 +1,8 @@
 import { SETTINGS_CATEGORIES } from '@/config/settingsItems'
 import {
   ALL_THEME,
-  CONNECTIONS_TABLE_ACCESSOR_KEY,
   CONNECTION_DISPLAY_STYLE,
+  CONNECTIONS_TABLE_ACCESSOR_KEY,
   DETAILED_CARD_STYLE,
   EMOJIS,
   FOLDER_MODE,
@@ -80,6 +80,39 @@ const migrateLegacyConnectionDisplayStyle = () => {
 
 migrateLegacyConnectionDisplayStyle()
 
+const migrateIPAPISettings = () => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const globalAPI = localStorage.getItem('config/geoip-info-api')
+  const secondaryKey = 'config/ip-check-secondary-api'
+
+  if (
+    localStorage.getItem(secondaryKey) === null &&
+    globalAPI !== IP_INFO_API.IPIP &&
+    Object.values(IP_INFO_API).includes(globalAPI as IP_INFO_API)
+  ) {
+    localStorage.setItem(secondaryKey, globalAPI as string)
+  }
+
+  const legacyEarthKey = 'config/earth-origin-source'
+  const earthKey = 'config/earth-ip-info-api'
+  const legacyEarthSource = localStorage.getItem(legacyEarthKey)
+
+  if (localStorage.getItem(earthKey) === null) {
+    if (legacyEarthSource === 'china') {
+      localStorage.setItem(earthKey, IP_INFO_API.IPIP)
+    } else if (legacyEarthSource === 'global') {
+      localStorage.setItem(earthKey, IP_INFO_API.IPSB)
+    }
+  }
+
+  localStorage.removeItem(legacyEarthKey)
+}
+
+migrateIPAPISettings()
+
 // global
 export const defaultTheme = useStorage<string>('config/default-theme', 'light')
 export const darkTheme = useStorage<string>('config/dark-theme', 'dark')
@@ -93,8 +126,16 @@ export const theme = computed(() => {
 export const customThemes = useStorage<THEME[]>('config/custom-themes', [])
 
 const replaceLegacyTheme = (theme: string, defaultTheme: string) => {
-  if (theme === 'dark-apple') {
-    return 'dark'
+  const legacyThemeReplacements: Record<string, string> = {
+    'dark-apple': 'dark',
+    lofi: 'light',
+    wireframe: 'light',
+    black: 'dark-neutral',
+    business: 'dark-neutral',
+  }
+
+  if (theme in legacyThemeReplacements) {
+    return legacyThemeReplacements[theme]
   }
   if ([...ALL_THEME, ...customThemes.value.map((theme) => theme.name)].includes(theme)) {
     return theme
@@ -159,7 +200,10 @@ export const disablePullToRefresh = useStorage('config/disable-pull-to-refresh',
 export const displayAllFeatures = useStorage('config/display-all-features', false)
 export const blurIntensity = useStorage('config/blur-intensity', 10)
 export const scrollAnimationEffect = useStorage('config/scroll-animation-effect', true)
-export const IPInfoAPI = useStorage('config/geoip-info-api', IP_INFO_API.IPSB)
+export const IPInfoAPI = useStorage<IP_INFO_API>('config/geoip-info-api', IP_INFO_API.IPSB)
+if (IPInfoAPI.value === IP_INFO_API.IPIP) {
+  IPInfoAPI.value = IP_INFO_API.IPSB
+}
 export const geoipCountryDatabaseURL = useStorage(
   'config/geoip-country-database-url',
   GEOIP_COUNTRY_DATABASE_URL,
@@ -175,6 +219,14 @@ export const keyboardShortcuts = useStorage<Record<string, string>>('config/keyb
 // overview
 export const splitOverviewPage = useStorage('config/split-overview-page', false)
 export const autoIPCheck = useStorage('config/auto-ip-check', true)
+export const ipCheckPrimaryAPI = useStorage<IP_INFO_API>(
+  'config/ip-check-primary-api',
+  IP_INFO_API.IPIP,
+)
+export const ipCheckSecondaryAPI = useStorage<IP_INFO_API>(
+  'config/ip-check-secondary-api',
+  IP_INFO_API.IPSB,
+)
 export const autoConnectionCheck = useStorage('config/auto-connection-check', true)
 export const showStatisticsWhenSidebarCollapsed = useStorage(
   'config/show-statistics-when-sidebar-collapsed',
@@ -243,10 +295,7 @@ if (missingCards.length > 0) {
   overviewCardOrder.value = nextOrder
 }
 
-export const earthOriginSource = useStorage<'global' | 'china'>(
-  'config/earth-origin-source',
-  'china',
-)
+export const earthIPInfoAPI = useStorage<IP_INFO_API>('config/earth-ip-info-api', IP_INFO_API.IPIP)
 export const earthVisualMode = useStorage<'flat' | 'space'>('config/earth-visual-mode', 'flat')
 export const topologyApplyConnectionFilter = useStorage(
   'config/topology-apply-connection-filter',
