@@ -24,6 +24,14 @@ test('runs tests before type checking and building the immutable release', () =>
   assert.ok(typeCheckIndex < buildIndex)
 })
 
+test('keeps upstream Build and Deploy off this fork', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
+  const repoGuards = [...workflow.matchAll(/if: github\.repository == 'Zephyruso\/zashboard'/g)]
+
+  assert.equal(repoGuards.length, 4)
+  assert.match(workflow, /token: \$\{\{ secrets\.PAT \}\}/)
+})
+
 test('verifies branch head before atomically promoting an immutable release', () => {
   const workflow = readFileSync(
     new URL('../.github/workflows/lan-device-release.yml', import.meta.url),

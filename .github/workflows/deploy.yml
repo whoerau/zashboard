@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   release-please:
+    # This fork publishes via lan-device-release.yml and does not have secrets.PAT.
+    # 本 fork 走 lan-device-release.yml 发布，未配置 secrets.PAT。
+    if: github.repository == 'Zephyruso/zashboard'
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -27,6 +30,7 @@ jobs:
 
   build-and-deploy:
     needs: release-please
+    if: github.repository == 'Zephyruso/zashboard'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -64,7 +68,7 @@ jobs:
   release-dist:
     needs: release-please
     runs-on: ubuntu-latest
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: github.repository == 'Zephyruso/zashboard' && needs.release-please.outputs.release_created
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +102,7 @@ jobs:
   release-image:
     needs: release-please
     runs-on: ubuntu-latest
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: github.repository == 'Zephyruso/zashboard' && needs.release-please.outputs.release_created
     steps:
       - uses: actions/checkout@v6
 
