@@ -63,7 +63,7 @@ const { t } = useI18n()
 
 const reloadAll = () => {
   fetchConfigs()
-  fetchRules()
+  void fetchRules().catch(notifyRequestError)
   fetchProxies()
 }
 

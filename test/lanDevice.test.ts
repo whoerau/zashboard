@@ -108,6 +108,7 @@ test('formats scoped LAN proxy names only for the matching device', () => {
     getLanDeviceScopedProxyName('lan/iphone14pm/GLOBAL', 'iphone14'),
     'lan/iphone14pm/GLOBAL',
   )
+  assert.match(getLanDeviceScopedProxyName('lan/iphone14pm/GLOBAL', 'iphone14pm'), /^GLOBAL$/)
 })
 
 test('preserves the Rules device while manifest state is unavailable', () => {

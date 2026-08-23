@@ -269,6 +269,7 @@ const zh: LANG_MESSAGE = {
   updated: '更新于',
   upgradeDashboard: '升级面板',
   dashboardUpgradeCheckingLanRules: '正在检查受管 LAN 规则，暂不可升级面板',
+  dashboardUpgradeUnavailableLanRules: '无法验证 lan-rules.json，已阻止内置升级',
   lanDeviceRules: 'LAN 设备规则',
   lanDeviceGroups: 'LAN 设备分组',
   dashboardUpgradeManagedLanRules:

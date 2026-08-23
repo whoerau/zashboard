@@ -249,6 +249,7 @@ export const proxyGroupLatencyTest = async (proxyGroupName: string) => {
   await runURLTest(proxyGroupName)
 }
 
-export const allProxiesLatencyTest = async () => {
-  await Promise.allSettled(Array.from(groups.keys()).map((tag) => runURLTest(tag)))
+export const allProxiesLatencyTest = async (proxyGroupNames?: readonly string[]) => {
+  const targetGroups = proxyGroupNames ?? Array.from(groups.keys())
+  await Promise.allSettled(targetGroups.map((tag) => runURLTest(tag)))
 }

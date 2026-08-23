@@ -56,7 +56,7 @@ export const showUpdateConfigModal = ref(false)
 
 const reloadAll = () => {
   fetchConfigs()
-  fetchRules()
+  void fetchRules().catch(notifyRequestError)
   fetchProxies()
 }
 

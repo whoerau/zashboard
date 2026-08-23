@@ -77,12 +77,13 @@ import RulesTable from '@/components/rules/RulesTable.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import { LIST_DISPLAY_STYLE, RULE_TAB_TYPE } from '@/constant'
 import { fetchRules, renderRules, renderRulesProvider, rules, rulesTabShow } from '@/assembly/rules'
+import { notifyRequestError } from '@/helper/requestError'
 import { getRuleDisplayNumber } from '@/helper/ruleView'
 import { ruleDisplayStyle } from '@/store/settings'
 import type { Rule } from '@/types'
 import { computed, provide, ref } from 'vue'
 
-fetchRules()
+void fetchRules().catch(notifyRequestError)
 
 const expandedRule = ref<string | null>(null)
 provide('expandedRule', expandedRule)

@@ -11,6 +11,7 @@ import {
 import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { LIST_DISPLAY_STYLE, RULE_TAB_TYPE } from '@/constant'
 import { showNotification } from '@/helper/notification'
+import { notifyRequestError } from '@/helper/requestError'
 import {
   disconnectOnRuleDisable,
   displayLatencyInRule,
@@ -62,10 +63,10 @@ export default defineComponent({
             }),
           ),
         )
-        await fetchRules()
-        isUpgrading.value = false
-      } catch {
-        await fetchRules()
+      } catch (error) {
+        notifyRequestError(error)
+      } finally {
+        await fetchRules().catch(notifyRequestError)
         isUpgrading.value = false
       }
     }

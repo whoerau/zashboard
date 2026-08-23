@@ -1,5 +1,6 @@
 import { proxiesFilter, proxiesTabShow, proxyMap, proxyProviederList } from '@/assembly/proxies'
 import { PROXY_SEARCH_MODE, PROXY_TAB_TYPE } from '@/constant'
+import { getLanDeviceScopedProxyName } from '@/helper/lanDevice'
 import { toSearchRegex } from '@/helper/search'
 import { proxyProviderSearchMode, proxySearchMode } from '@/store/settings'
 import { computed } from 'vue'
@@ -29,8 +30,15 @@ export const matchProxySearchKeyword = (name: string, keyword = proxySearchKeywo
   return toSearchRegex(normalizedKeyword)?.test(name) ?? true
 }
 
-export const proxyGroupContainsMatchingNode = (groupName: string) => {
-  return proxyMap.value[groupName]?.all?.some((name) => matchProxySearchKeyword(name)) ?? false
+export const matchLanDeviceProxySearchKeyword = (name: string, lanDevice: string) =>
+  matchProxySearchKeyword(getLanDeviceScopedProxyName(name, lanDevice))
+
+export const proxyGroupContainsMatchingNode = (groupName: string, lanDevice = '') => {
+  return (
+    proxyMap.value[groupName]?.all?.some((name) =>
+      matchLanDeviceProxySearchKeyword(name, lanDevice),
+    ) ?? false
+  )
 }
 
 export const proxyProviderContainsMatchingNode = (providerName: string) => {

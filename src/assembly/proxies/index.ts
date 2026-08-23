@@ -144,7 +144,7 @@ interface ProxiesBackend {
     groupName?: string,
   ) => Promise<unknown>
   proxyGroupLatencyTest: (proxyGroupName: string) => Promise<unknown>
-  allProxiesLatencyTest: () => Promise<unknown>
+  allProxiesLatencyTest: (proxyGroupNames?: readonly string[]) => Promise<unknown>
 }
 
 const load = (): Promise<ProxiesBackend> =>
@@ -172,7 +172,8 @@ export const proxyLatencyTest = async (
 export const proxyGroupLatencyTest = async (proxyGroupName: string) =>
   (await load()).proxyGroupLatencyTest(proxyGroupName)
 
-export const allProxiesLatencyTest = async () => (await load()).allProxiesLatencyTest()
+export const allProxiesLatencyTest = async (proxyGroupNames?: readonly string[]) =>
+  (await load()).allProxiesLatencyTest(proxyGroupNames)
 
 // 后端切换 / 登出时丢弃 sing-box 订阅(clash 无需处理)。
 export const resetProxies = async () => {

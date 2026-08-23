@@ -10,8 +10,10 @@ import {
   filterLanManifestSubRules,
   isLanRulesManifestForRules,
   isLanRulesManifestSameOrigin,
+  loadLanRulesManifest,
   parseLanRulesManifest,
 } from '../src/helper/lanRulesManifest.ts'
+import { collectProxyLeafNames } from '../src/helper/proxyLatency.ts'
 import { pickGitHubComparisonCacheData } from '../src/helper/uiUpdate.ts'
 
 test('routes notification messages through the text-only renderer', () => {
@@ -47,7 +49,7 @@ test('guards rule snapshots and manifests with the same asynchronous generation'
 
   assert.match(source, /const rulesRequestGuard = createGenerationGuard\(\)/)
   assert.match(source, /rulesRequestGuard\.isCurrent\(generation\)/)
-  assert.match(source, /isLanRulesManifestForRules\(manifest, snapshot\.rules\)/)
+  assert.match(source, /isLanRulesManifestForRules\(manifestResult\.manifest, snapshot\.rules\)/)
   assert.match(source, /rulesSnapshotKey\.value !== requestSnapshotKey\) clearRulesSnapshot\(\)/)
 })
 
@@ -157,12 +159,16 @@ test('resets the source IP filter when the active backend changes', () => {
   )
 })
 
-test('clears LAN rules checking state when rule fetch fails', () => {
+test('fails closed and propagates errors when rule or sidecar checks fail', () => {
   const source = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
 
   assert.match(source, /import \{ useStorage \} from '@\/helper\/storage'/)
   assert.doesNotMatch(source, /from '@vueuse\/core'/)
-  assert.match(source, /catch \{[\s\S]*!isCurrentRequest\(\)[\s\S]*lanRulesManifestStatus\.value =/)
+  assert.match(source, /export const canUseCoreUIUpdater = computed\(\(\) =>[\s\S]*?'inactive'/)
+  assert.match(
+    source,
+    /catch \(error\)[\s\S]*!isCurrentRequest\(\)[\s\S]*?'unavailable'[\s\S]*?throw error/,
+  )
 })
 
 test('shares rebuilt source IP option arrays with the selected filter', () => {
@@ -201,13 +207,48 @@ test('overview cards share one connection-filter source', () => {
   assert.match(topology, /overviewActiveConnections\.value\.flatMap/)
 })
 
-test('relabels in-memory logs when the LAN device resolver changes', () => {
+test('relabels in-memory logs from their original payload when the resolver changes', () => {
   const source = readFileSync(
     new URL('../src/assembly/logs/accumulator.ts', import.meta.url),
     'utf8',
   )
 
   assert.match(source, /watch\(lanDeviceResolver, relabelStoredLogs\)/)
+  assert.match(source, /const rawPayloads = new Map<number, string>\(\)/)
+  assert.match(source, /labelPayload\(rawPayloads\.get\(log\.seq\) \?\? log\.payload\)/)
+})
+
+test('limits page-level latency targets to recursively reachable device leaves', () => {
+  const leaves = collectProxyLeafNames(
+    {
+      'lan/phone/root': { all: ['lan/phone/nested', 'phone-a'] },
+      'lan/phone/nested': { all: ['lan/phone/root', 'phone-b'] },
+      'lan/tablet/root': { all: ['tablet-a'] },
+      'phone-a': {},
+      'phone-b': {},
+      'tablet-a': {},
+    },
+    ['lan/phone/root'],
+  )
+
+  assert.deepEqual(leaves, ['phone-a', 'phone-b'])
+
+  const controls = readFileSync(
+    new URL('../src/components/controls/ProxiesCtrl.tsx', import.meta.url),
+    'utf8',
+  )
+  assert.match(
+    controls,
+    /allProxiesLatencyTest\([\s\S]*?proxiesDevice\.value \? filteredProxyGroups\.value : undefined/,
+  )
+})
+
+test('matches device proxy searches against the visible name', () => {
+  const source = readFileSync(new URL('../src/composables/proxySearch.ts', import.meta.url), 'utf8')
+  const rules = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /matchProxySearchKeyword\(getLanDeviceScopedProxyName\(name, lanDevice\)\)/)
+  assert.match(rules, /getLanDeviceScopedProxyName\(rule\.proxy, rulesDevice\.value\)/)
 })
 
 test('skips CIDR labels whose address family does not match', () => {
@@ -270,6 +311,36 @@ test('accepts a deeply valid LAN rules manifest', () => {
   }
 
   assert.deepEqual(parseLanRulesManifest(manifest), manifest)
+})
+
+test('distinguishes a missing LAN sidecar from unreadable or invalid responses', async () => {
+  const validManifest = {
+    version: 2,
+    ruleCount: 0,
+    rulesDigest: 'cbf29ce484222325',
+    devices: [],
+  }
+  const loaded = await loadLanRulesManifest(
+    'https://gateway.example/lan-rules.json',
+    async () => new Response(JSON.stringify(validManifest)),
+  )
+  const missing = await loadLanRulesManifest(
+    'https://gateway.example/lan-rules.json',
+    async () => new Response('', { status: 404 }),
+  )
+  const failed = await loadLanRulesManifest(
+    'https://gateway.example/lan-rules.json',
+    async () => new Response('', { status: 500 }),
+  )
+  const invalid = await loadLanRulesManifest(
+    'https://gateway.example/lan-rules.json',
+    async () => new Response('{'),
+  )
+
+  assert.deepEqual(loaded, { status: 'loaded', manifest: validManifest })
+  assert.deepEqual(missing, { status: 'missing' })
+  assert.deepEqual(failed, { status: 'error' })
+  assert.deepEqual(invalid, { status: 'error' })
 })
 
 test('rejects malformed LAN rules manifest devices and bindings', () => {

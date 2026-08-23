@@ -270,6 +270,8 @@ const ru: LANG_MESSAGE = {
   updated: 'Обновлено',
   upgradeDashboard: 'Обновить панель до новой версии',
   dashboardUpgradeCheckingLanRules: 'Проверка управляемых LAN-правил перед обновлением панели',
+  dashboardUpgradeUnavailableLanRules:
+    'Встроенное обновление заблокировано: lan-rules.json не удалось проверить',
   lanDeviceRules: 'Правила LAN-устройства',
   lanDeviceGroups: 'Группы LAN-устройства',
   dashboardUpgradeManagedLanRules:

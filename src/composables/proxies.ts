@@ -17,6 +17,7 @@ import { isEmpty } from 'lodash'
 import { computed, ref } from 'vue'
 import {
   isProxyNodeSearchMode,
+  matchLanDeviceProxySearchKeyword,
   matchProxySearchKeyword,
   proxyGroupContainsMatchingNode,
   proxyProviderContainsMatchingNode,
@@ -37,8 +38,8 @@ const filterProxyGroups = (groups: string[], respectHiddenGroups = true) => {
   }
 
   const matchesGroup = isProxyNodeSearchMode.value
-    ? proxyGroupContainsMatchingNode
-    : (name: string) => matchProxySearchKeyword(name)
+    ? (name: string) => proxyGroupContainsMatchingNode(name, proxiesDevice.value)
+    : (name: string) => matchLanDeviceProxySearchKeyword(name, proxiesDevice.value)
 
   return scopedGroups.filter(matchesGroup)
 }

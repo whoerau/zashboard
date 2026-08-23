@@ -140,7 +140,7 @@ export default defineComponent({
       if (isAllLatencyTesting.value) return
       isAllLatencyTesting.value = true
       try {
-        await allProxiesLatencyTest()
+        await allProxiesLatencyTest(proxiesDevice.value ? filteredProxyGroups.value : undefined)
         isAllLatencyTesting.value = false
       } catch {
         isAllLatencyTesting.value = false

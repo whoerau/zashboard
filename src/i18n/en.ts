@@ -268,6 +268,8 @@ const en = {
   updated: 'Updated',
   upgradeDashboard: 'Upgrade dashboard',
   dashboardUpgradeCheckingLanRules: 'Checking managed LAN rules before dashboard upgrade',
+  dashboardUpgradeUnavailableLanRules:
+    'Built-in upgrade is blocked because lan-rules.json could not be verified',
   lanDeviceRules: 'LAN device rules',
   lanDeviceGroups: 'LAN device groups',
   dashboardUpgradeManagedLanRules:

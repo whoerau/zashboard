@@ -253,11 +253,11 @@ const isVisibleDisplayAllFeatures = useIsSettingVisible(k.displayAllFeatures)
 const isUIUpgrading = ref(false)
 const dashboardUpgradeDisabledTip = computed(() => {
   if (canUseCoreUIUpdater.value) return undefined
-  return t(
-    lanRulesManifestStatus.value === 'checking'
-      ? 'dashboardUpgradeCheckingLanRules'
-      : 'dashboardUpgradeManagedLanRules',
-  )
+  if (lanRulesManifestStatus.value === 'checking') return t('dashboardUpgradeCheckingLanRules')
+  if (lanRulesManifestStatus.value === 'unavailable') {
+    return t('dashboardUpgradeUnavailableLanRules')
+  }
+  return t('dashboardUpgradeManagedLanRules')
 })
 const handlerClickUpgradeUI = async () => {
   if (isUIUpgrading.value || !canUseCoreUIUpdater.value) return

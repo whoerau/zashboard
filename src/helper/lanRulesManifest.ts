@@ -19,6 +19,9 @@ export type LanRulesManifest = {
   devices: LanRulesDevice[]
 }
 
+export type LanRulesManifestLoadResult =
+  { status: 'loaded'; manifest: LanRulesManifest } | { status: 'missing' } | { status: 'error' }
+
 type ManifestSourceRule = {
   index: number
   payload?: string
@@ -101,6 +104,25 @@ export const parseLanRulesManifest = (value: unknown): LanRulesManifest => {
   }
 
   return manifest
+}
+
+type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
+
+export const loadLanRulesManifest = async (
+  url: string | URL,
+  fetcher: FetchLike = (input, init) => fetch(input, init),
+): Promise<LanRulesManifestLoadResult> => {
+  try {
+    const response = await fetcher(url, { cache: 'no-store' })
+    if (response.status === 404) return { status: 'missing' }
+    if (!response.ok) return { status: 'error' }
+
+    return { status: 'loaded', manifest: parseLanRulesManifest(await response.json()) }
+  } catch {
+    // Only a confirmed 404 proves that no managed sidecar needs preservation.
+    // 只有明确的 404 才能证明没有需要保留的受管 sidecar。
+    return { status: 'error' }
+  }
 }
 
 export const createLanRulesDigest = (

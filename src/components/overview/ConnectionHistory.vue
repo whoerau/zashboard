@@ -183,15 +183,15 @@
 </template>
 
 <script setup lang="ts">
-import { rules } from '@/assembly/rules'
+import { lanDeviceResolver } from '@/assembly/rules'
 import { ConnectionHistoryType } from '@/helper/indexeddb'
 import SelectInput from '@/components/common/SelectInput.vue'
-import { createLanDeviceResolver, getLanDeviceDisplayName } from '@/helper/lanDevice'
+import { getLanDeviceDisplayName } from '@/helper/lanDevice'
 import { showNotification } from '@/helper/notification'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { useStorage } from '@/helper/storage'
 import { useTooltip } from '@/helper/tooltip'
-import { buildConnectionHistoryView } from '@/helper/topology'
+import { buildConnectionHistoryView, filterSourceIPHistoryEntries } from '@/helper/topology'
 import { prettyBytesHelper } from '@/helper/utils'
 import {
   aggregateConnections,
@@ -199,7 +199,8 @@ import {
   clearConnectionHistory,
   mergeAggregatedData,
 } from '@/store/connHistory'
-import { overviewActiveConnections } from '@/store/connections'
+import { overviewActiveConnections, sourceIPFilter } from '@/store/connections'
+import { topologyApplyConnectionFilter } from '@/store/settings'
 import {
   ArrowDownCircleIcon,
   ArrowUpCircleIcon,
@@ -242,7 +243,19 @@ const aggregationType = useStorage<ConnectionHistoryType>(
   'cache/connection-history-aggregation-type',
   ConnectionHistoryType.SourceIP,
 )
-const historicalData = computed(() => aggregatedDataMap.value[aggregationType.value])
+const historicalData = computed(() => {
+  const entries = aggregatedDataMap.value[aggregationType.value]
+  if (
+    !topologyApplyConnectionFilter.value ||
+    aggregationType.value !== ConnectionHistoryType.SourceIP
+  ) {
+    return entries
+  }
+
+  // Historical source rows can honor source/device identity even though other live fields are gone.
+  // 历史来源行虽已失去其他实时字段，仍可按来源及设备身份筛选。
+  return filterSourceIPHistoryEntries(entries, sourceIPFilter.value, lanDeviceResolver.value)
+})
 const connectionHistoryView = computed(() => {
   const currentData = aggregateConnections(overviewActiveConnections.value, aggregationType.value)
   const mergedData = mergeAggregatedData(historicalData.value, currentData)
@@ -256,7 +269,6 @@ const aggregatedData = computed<ConnectionHistoryData[]>(() => connectionHistory
 const totalStats = computed(() => connectionHistoryView.value.totals)
 
 const aggregateSourceCount = computed(() => aggregatedData.value.length)
-const resolveLanDevice = computed(() => createLanDeviceResolver(rules.value))
 
 const aggregateSourceLabel = computed(() => {
   if (aggregationType.value === ConnectionHistoryType.SourceIP) {
@@ -279,7 +291,7 @@ const columns = computed<ColumnDef<ConnectionHistoryData>[]>(() => {
     accessorFn: (row) => row.key,
     cell: ({ row }) => {
       if (aggregationType.value === ConnectionHistoryType.SourceIP) {
-        return getLanDeviceDisplayName(row.original.key, resolveLanDevice.value, getIPLabelFromMap)
+        return getLanDeviceDisplayName(row.original.key, lanDeviceResolver.value, getIPLabelFromMap)
       } else if (aggregationType.value === ConnectionHistoryType.Destination) {
         return row.original.key
       } else if (aggregationType.value === ConnectionHistoryType.Process) {

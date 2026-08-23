@@ -45,7 +45,7 @@ export const startBackendSession = async () => {
   proxiesTabShow.value = PROXY_TAB_TYPE.PROXIES
   fetchConfigs()
   fetchProxies()
-  fetchRules()
+  void fetchRules().catch(() => {})
   initConnections()
   initLogs()
   initSatistic()

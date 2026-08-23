@@ -23,10 +23,19 @@ export const createLogsAccumulator = (
 ): LogsAccumulator => {
   let idx = 1
   let logsTemp: LogWithSeq[] = []
+  // Preserve source text because rendered IP labels cannot be safely reversed.
+  // 保留原始文本，因为渲染后的 IP 标签无法安全还原。
+  const rawPayloads = new Map<number, string>()
 
   const flush = throttle(() => {
-    logs.value = logsTemp.concat(logs.value).slice(0, logRetentionLimit.value)
+    const retainedLogs = logsTemp.concat(logs.value).slice(0, logRetentionLimit.value)
     logsTemp = []
+    logs.value = retainedLogs
+
+    const retainedSequences = new Set(retainedLogs.map((log) => log.seq))
+    for (const sequence of rawPayloads.keys()) {
+      if (!retainedSequences.has(sequence)) rawPayloads.delete(sequence)
+    }
   }, 500)
 
   // source-ip 标签替换规则,随 sourceIPLabelList / 当前后端变化重建。
@@ -63,10 +72,16 @@ export const createLogsAccumulator = (
 
   const relabelStoredLogs = () => {
     if (logsTemp.length) {
-      logsTemp = logsTemp.map((log) => ({ ...log, payload: labelPayload(log.payload) }))
+      logsTemp = logsTemp.map((log) => ({
+        ...log,
+        payload: labelPayload(rawPayloads.get(log.seq) ?? log.payload),
+      }))
     }
     if (logs.value.length) {
-      logs.value = logs.value.map((log) => ({ ...log, payload: labelPayload(log.payload) }))
+      logs.value = logs.value.map((log) => ({
+        ...log,
+        payload: labelPayload(rawPayloads.get(log.seq) ?? log.payload),
+      }))
     }
   }
 
@@ -80,11 +95,13 @@ export const createLogsAccumulator = (
         continue
       }
 
+      const sequence = idx++
+      rawPayloads.set(sequence, data.payload)
       logsTemp.unshift({
         ...data,
         payload: labelPayload(data.payload),
         time: dayjs().format('HH:mm:ss'),
-        seq: idx++,
+        seq: sequence,
       })
     }
 

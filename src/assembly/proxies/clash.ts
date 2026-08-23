@@ -13,6 +13,7 @@ import { disconnectByIdAPI } from '@/assembly/connections'
 import { GLOBAL, IPV6_TEST_URL, NOT_CONNECTED, PROXY_TYPE, SPEEDTEST_MODE } from '@/constant'
 import { getConnectionChains, isProxyGroup } from '@/helper'
 import { showNotification } from '@/helper/notification'
+import { collectProxyLeafNames } from '@/helper/proxyLatency'
 import { notifyRequestError } from '@/helper/requestError'
 import { i18n } from '@/i18n'
 import { activeConnections } from '@/store/connections'
@@ -355,12 +356,14 @@ export const proxyGroupLatencyTest = async (proxyGroupName: string) => {
   })
 }
 
-export const allProxiesLatencyTest = async () => {
+export const allProxiesLatencyTest = async (proxyGroupNames?: readonly string[]) => {
+  const targetGroups = proxyGroupNames ?? proxyGroupList.value
+
   if (independentLatencyTest.value) {
     const limit = pLimit(3)
 
     return await Promise.all(
-      proxyGroupList.value.map((proxyGroupName) =>
+      targetGroups.map((proxyGroupName) =>
         limit(async () => {
           await proxyGroupLatencyTest(proxyGroupName)
         }),
@@ -368,9 +371,13 @@ export const allProxiesLatencyTest = async () => {
     )
   }
 
-  const proxyNode = Object.keys(proxyMap.value).filter(
-    (proxy) => !isProxyGroup(proxy) && isLatencyTestable(proxy),
-  )
+  // A selected device limits both group tests and recursively reachable leaf tests.
+  // 选中设备后，组测速及递归可达的叶子测速都限制在该设备内。
+  const proxyNode = (
+    proxyGroupNames
+      ? collectProxyLeafNames(proxyMap.value, targetGroups)
+      : Object.keys(proxyMap.value).filter((proxy) => !isProxyGroup(proxy))
+  ).filter(isLatencyTestable)
 
   return testLatencyOneByOneWithTip(i18n.global.t('all'), proxyNode)
 }

@@ -7,6 +7,7 @@ import { getBackendScopedSnapshot } from '@/helper/backendSnapshot'
 import { createGenerationGuard } from '@/helper/generationGuard'
 import {
   createLanDeviceResolver,
+  getLanDeviceScopedProxyName,
   LAN_DEVICE_STORAGE_KEYS,
   resolveRulesDeviceSelection,
 } from '@/helper/lanDevice'
@@ -15,7 +16,7 @@ import {
   isLanRulesManifestForRules,
   isLanRulesManifestSameOrigin,
   type LanRulesManifest,
-  parseLanRulesManifest,
+  loadLanRulesManifest,
 } from '@/helper/lanRulesManifest'
 import { toSearchRegex } from '@/helper/search'
 import { useStorage } from '@/helper/storage'
@@ -62,7 +63,7 @@ export const lanDeviceResolver = computed(() => createLanDeviceResolver(rules.va
 
 export const lanRulesManifest = ref<LanRulesManifest>(EMPTY_LAN_RULES_MANIFEST)
 const lanRulesManifestSnapshotKey = ref('')
-export type LanRulesManifestStatus = 'checking' | 'inactive' | 'active'
+export type LanRulesManifestStatus = 'checking' | 'inactive' | 'active' | 'unavailable'
 export const lanRulesManifestStatus = ref<LanRulesManifestStatus>('inactive')
 export const canUseCoreUIUpdater = computed(() => lanRulesManifestStatus.value === 'inactive')
 export const lanRulesDevices = computed(() =>
@@ -101,18 +102,6 @@ watch(
   { immediate: true, flush: 'sync' },
 )
 
-const fetchLanRulesManifest = async (backendURL: string) => {
-  if (!isLanRulesManifestSameOrigin(document.baseURI, backendURL)) return
-
-  try {
-    const response = await fetch(new URL('lan-rules.json', document.baseURI), { cache: 'no-store' })
-    if (!response.ok) return
-    return parseLanRulesManifest(await response.json())
-  } catch {
-    return
-  }
-}
-
 const defaultRules = computed(() => filterLanManifestSubRules(rules.value, lanRulesDevices.value))
 
 export const scopedRules = computed<Rule[]>(() => {
@@ -134,7 +123,11 @@ export const renderRules = computed(() => {
   if (!searchRegex) return scopedRules.value
 
   return scopedRules.value.filter((rule) =>
-    searchRegex.testAny([rule.type, rule.payload, rule.proxy]),
+    searchRegex.testAny([
+      rule.type,
+      rule.payload,
+      getLanDeviceScopedProxyName(rule.proxy, rulesDevice.value),
+    ]),
   )
 })
 
@@ -163,10 +156,8 @@ const clearRulesSnapshot = () => {
 export const fetchRules = async () => {
   const generation = rulesRequestGuard.next()
   const requestChannel = channel.value
-  const backend = activeBackend.value
   const backendKey = currentBackendKey.value
   const requestSnapshotKey = `${requestChannel}:${backendKey}`
-  const backendURL = backend ? getUrlFromBackend(backend) : ''
 
   // Drop a previous backend's data before any new request can fail or race.
   // 在新请求可能失败或竞态前，先丢弃上一后端的数据。
@@ -176,8 +167,8 @@ export const fetchRules = async () => {
   lanRulesManifestStatus.value = shouldFetchManifest ? 'checking' : 'inactive'
 
   const manifestRequest = shouldFetchManifest
-    ? fetchLanRulesManifest(backendURL)
-    : Promise.resolve(undefined)
+    ? loadLanRulesManifest(new URL('lan-rules.json', document.baseURI))
+    : Promise.resolve({ status: 'missing' } as const)
 
   const isCurrentRequest = () =>
     rulesRequestGuard.isCurrent(generation) &&
@@ -185,7 +176,7 @@ export const fetchRules = async () => {
     currentBackendKey.value === backendKey
 
   try {
-    const [snapshot, manifest] = await Promise.all([
+    const [snapshot, manifestResult] = await Promise.all([
       (await load(requestChannel)).fetchRules(),
       manifestRequest,
     ])
@@ -195,7 +186,11 @@ export const fetchRules = async () => {
     ruleProviderSnapshot.value = snapshot.ruleProviderList
     rulesSnapshotKey.value = requestSnapshotKey
 
-    if (manifest && isLanRulesManifestForRules(manifest, snapshot.rules)) {
+    if (
+      manifestResult.status === 'loaded' &&
+      isLanRulesManifestForRules(manifestResult.manifest, snapshot.rules)
+    ) {
+      const manifest = manifestResult.manifest
       lanRulesManifest.value = manifest
       lanRulesManifestSnapshotKey.value = requestSnapshotKey
       rulesDevice.value = resolveRulesDeviceSelection(
@@ -206,22 +201,33 @@ export const fetchRules = async () => {
       return
     }
 
-    const canKeepPrevious =
-      lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
-      isLanRulesManifestForRules(lanRulesManifest.value, snapshot.rules)
-    if (!canKeepPrevious) {
-      lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
-      lanRulesManifestSnapshotKey.value = ''
+    if (manifestResult.status !== 'missing') {
+      // Existing but invalid/unreadable sidecars must block destructive core UI upgrades.
+      // 已存在但无效或不可读的 sidecar 必须阻止破坏性的核心 UI 升级。
+      const canKeepPrevious =
+        lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
+        isLanRulesManifestForRules(lanRulesManifest.value, snapshot.rules)
+      if (!canKeepPrevious) {
+        lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
+        lanRulesManifestSnapshotKey.value = ''
+      }
+      lanRulesManifestStatus.value = 'unavailable'
+      return
     }
-    lanRulesManifestStatus.value =
-      canKeepPrevious && lanRulesManifest.value.devices.length ? 'active' : 'inactive'
-  } catch {
+
+    lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
+    lanRulesManifestSnapshotKey.value = ''
+    lanRulesManifestStatus.value = 'inactive'
+  } catch (error) {
     if (!isCurrentRequest()) return
     lanRulesManifestStatus.value =
       lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
       lanRulesManifest.value.devices.length
         ? 'active'
-        : 'inactive'
+        : shouldFetchManifest
+          ? 'unavailable'
+          : 'inactive'
+    throw error
   }
 }
 

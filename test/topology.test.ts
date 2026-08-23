@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildConnectionHistoryView,
+  filterSourceIPHistoryEntries,
   filterVisibleSourceEntries,
   shouldRenderTopologySource,
 } from '../src/helper/topology.ts'
@@ -35,4 +36,20 @@ test('keeps hidden Inner traffic in overview totals', () => {
 
   assert.deepEqual(result.rows, [{ key: '192.168.50.94', download: 30, upload: 40, count: 2 }])
   assert.deepEqual(result.totals, { download: 40, upload: 60, count: 3 })
+})
+
+test('filters historical source rows with the current dual-stack LAN device selection', () => {
+  const entries = [
+    { key: '192.168.50.94', count: 1 },
+    { key: '2001:db8::94', count: 2 },
+    { key: '192.168.50.95', count: 3 },
+  ]
+  const resolveDevice = (ip: string) =>
+    ip === '192.168.50.94' || ip === '2001:db8::94' ? 'phone' : undefined
+
+  assert.deepEqual(
+    filterSourceIPHistoryEntries(entries, ['192.168.50.94'], resolveDevice),
+    entries.slice(0, 2),
+  )
+  assert.deepEqual(filterSourceIPHistoryEntries(entries, null, resolveDevice), entries)
 })

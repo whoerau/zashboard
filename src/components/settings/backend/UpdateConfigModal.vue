@@ -81,7 +81,7 @@ const isUpdating = ref(false)
 
 const reloadAll = () => {
   fetchConfigs()
-  fetchRules()
+  void fetchRules().catch(notifyRequestError)
   fetchProxies()
 }
 

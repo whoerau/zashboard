@@ -1,3 +1,5 @@
+import { createSourceIPFilterMatcher } from './sourceIPFilter.ts'
+
 export const shouldRenderTopologySource = (sourceIP: string) => {
   const source = sourceIP.trim()
 
@@ -6,6 +8,15 @@ export const shouldRenderTopologySource = (sourceIP: string) => {
 
 export const filterVisibleSourceEntries = <T extends { key: string }>(entries: readonly T[]) =>
   entries.filter((entry) => shouldRenderTopologySource(entry.key))
+
+export const filterSourceIPHistoryEntries = <T extends { key: string }>(
+  entries: readonly T[],
+  sourceIPs: readonly string[] | null,
+  resolveLanDevice?: (ip: string) => string | undefined,
+) => {
+  const matchesSourceIP = createSourceIPFilterMatcher(sourceIPs, resolveLanDevice)
+  return entries.filter((entry) => matchesSourceIP(entry.key))
+}
 
 type ConnectionHistoryEntry = {
   key: string
