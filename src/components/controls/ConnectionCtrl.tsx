@@ -138,7 +138,7 @@ export default defineComponent({
                   settingsModel.value = false
                   router.push({
                     name: ROUTE_NAME.settings,
-                    query: { scrollTo: SETTINGS_MENU_KEY.connections },
+                    query: { section: SETTINGS_MENU_KEY.connections },
                   })
                 }}
               >

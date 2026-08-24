@@ -22,12 +22,15 @@
             ]"
           />
         </SettingItem>
-        <SettingItem :setting-key="k.speedtestUrl">
+        <SettingItem
+          :setting-key="k.speedtestUrl"
+          class="max-sm:flex-col max-sm:items-start! max-sm:py-3"
+        >
           <div class="setting-item-label">
             {{ $t('speedtestUrl') }}
           </div>
           <TextInput
-            class="flex-2"
+            class="w-full flex-2"
             v-model="speedtestUrl"
             :clearable="true"
           />
@@ -94,7 +97,7 @@
     </template>
     <template v-if="hasVisibleProxyStyleItems">
       <div class="settings-section-label">
-        {{ $t('appearance') }}
+        {{ $t('settingsSectionProxyDisplay') }}
       </div>
       <div class="settings-grid">
         <SettingItem :setting-key="k.proxyFolderMode">
@@ -144,6 +147,7 @@
         <SettingItem
           :setting-key="k.customGlobalNode"
           :when="displayGlobalByMode && can('customGlobalNode')"
+          class="settings-dependent-item"
         >
           <div class="setting-item-label">
             {{ $t('customGlobalNode') }}
@@ -180,6 +184,13 @@
             :options="Object.values(PROXY_CARD_SIZE).map((value) => ({ value, label: $t(value) }))"
           />
         </SettingItem>
+      </div>
+    </template>
+    <template v-if="hasVisibleProxyAdvancedItems">
+      <div class="settings-section-label">
+        {{ $t('settingsSectionProxyAdvanced') }}
+      </div>
+      <div class="settings-grid">
         <SettingItem :setting-key="k.proxyGroupIconSize">
           <div class="setting-item-label">
             {{ $t('proxyGroupIconSize') }}
@@ -296,10 +307,14 @@ const hasVisibleProxyStyleItems = computed(() => {
     isVisibleDisplayGlobalByMode.value ||
     (displayGlobalByMode.value && can('customGlobalNode') && isVisibleCustomGlobalNode.value) ||
     isVisibleProxyPreviewType.value ||
-    isVisibleProxyCardSize.value ||
-    isVisibleProxyGroupIconSize.value ||
-    isVisibleProxyGroupIconMargin.value ||
-    isVisibleIconSettings.value
+    isVisibleProxyCardSize.value
   )
 })
+
+const hasVisibleProxyAdvancedItems = computed(
+  () =>
+    isVisibleProxyGroupIconSize.value ||
+    isVisibleProxyGroupIconMargin.value ||
+    isVisibleIconSettings.value,
+)
 </script>

@@ -1,4 +1,4 @@
-import { SETTINGS_CATEGORIES } from '@/config/settingsItems'
+import { DEFAULT_SETTINGS_MENU_ORDER } from '@/config/settingsItems'
 import {
   ALL_THEME,
   CONNECTION_DISPLAY_STYLE,
@@ -450,8 +450,5 @@ export const hiddenSettingsItems = useStorage<Record<string, boolean>>(
 // 存储设置菜单项的顺序
 export const settingsMenuOrder = useStorage<SETTINGS_MENU_KEY[]>(
   'config/settings-menu-order',
-  SETTINGS_CATEGORIES.map((category) => category.key),
+  DEFAULT_SETTINGS_MENU_ORDER,
 )
-
-// settings page two columns mode
-export const settingsPageTwoColumns = useStorage<boolean>('config/settings-page-two-columns', true)

@@ -8,8 +8,8 @@
         :class="
           isFullScreen
             ? [
-                'bg-base-100 custom-background fixed inset-0 z-[9999] flex h-screen w-screen flex-col bg-cover bg-center p-4',
-                `blur-intensity-${blurIntensity} custom-background-${dashboardTransparent}`,
+                'bg-base-100 fixed inset-0 z-[9999] flex h-screen w-screen flex-col bg-cover bg-center p-4',
+                backgroundImage && 'custom-background',
               ]
             : undefined
         "
@@ -105,11 +105,7 @@ import { getIPLabelFromMap } from '@/helper/sourceip'
 import { shouldRenderTopologySource } from '@/helper/topology'
 import { isMiddleScreen } from '@/helper/utils'
 import { overviewActiveConnections } from '@/store/connections'
-import {
-  blurIntensity,
-  dashboardTransparent,
-  topologyApplyConnectionFilter,
-} from '@/store/settings'
+import { topologyApplyConnectionFilter } from '@/store/settings'
 import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
@@ -139,7 +135,7 @@ const chartSurfaceStyle = computed<CSSProperties>(() => {
   if (!isFullScreen.value) return {}
 
   const style: CSSProperties = {
-    backdropFilter: `blur(${blurIntensity.value}px)`,
+    backdropFilter: 'var(--app-glass, none)',
     height: '100%',
     width: '100%',
   }

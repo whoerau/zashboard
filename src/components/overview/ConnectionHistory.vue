@@ -2,7 +2,7 @@
   <div class="base-container w-full backdrop-blur-none!">
     <!-- Header -->
     <div
-      class="need-blur flex items-center justify-between p-4 max-sm:flex-col max-sm:items-start max-sm:gap-2"
+      class="surface flex items-center justify-between p-4 max-sm:flex-col max-sm:items-start max-sm:gap-2"
     >
       <div
         class="text-base-content/60 flex items-center gap-2 text-xs font-semibold tracking-wider uppercase"
@@ -58,7 +58,7 @@
     </div>
 
     <!-- Stats grid -->
-    <div class="need-blur grid grid-cols-2 gap-3 px-4 pb-4 sm:grid-cols-5">
+    <div class="surface grid grid-cols-2 gap-3 px-4 pb-4 sm:grid-cols-5">
       <div class="bg-base-200/30 flex flex-col gap-1.5 rounded-xl p-4">
         <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
           {{ aggregateSourceLabel }}
@@ -138,7 +138,7 @@
                 transform: `translateY(${virtualRow.start - index * virtualRow.size}px)`,
               }"
               class="hover:bg-primary/85! hover:text-primary-content whitespace-nowrap"
-              :class="virtualRow.index % 2 === 1 && 'bg-base-150'"
+              :class="virtualRow.index % 2 === 1 && 'table-row-stripe'"
             >
               <td
                 v-for="cell in rows[virtualRow.index].getVisibleCells()"

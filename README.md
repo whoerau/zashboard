@@ -26,6 +26,10 @@ You can download the zashboard files here:
 
 > All builds include sing-box native API support.
 
+> [!WARNING]
+> Support for sing-box will be removed in the next release. [Learn more about this
+> decision](./docs/sing-box-deprecation.md).
+
 release:
 
 - [LAN-device fork latest dist.zip](https://github.com/whoerau/zashboard/releases/latest/download/dist.zip) – No-fonts build promoted only after its immutable release is complete.
