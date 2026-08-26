@@ -1,8 +1,7 @@
 // 组装层 · connection 字段访问器。
-// 每种后端(clash / sing-box)各实现一份 ConnectionAccessor,直接从「原始数据」
-// 读取/派生 view 需要的字段 —— 不再把 sing-box 塑造成 clash 形状。
-// createGetConnectionDisplayValue 基于某一份 accessor 生成对应后端的 getConnectionDisplayValue,
-// 由 index.ts 门面按当前后端动态选用。
+// ConnectionAccessor 直接从「原始数据」读取/派生 view 需要的字段。
+// createGetConnectionDisplayValue 基于该 accessor 生成 getConnectionDisplayValue,
+// 由 index.ts 门面暴露给 view。
 import { getGeoIPInfoSync } from '@/api/geoip'
 import { lanDeviceResolver } from '@/assembly/rules'
 import { CONNECTIONS_TABLE_ACCESSOR_KEY, PROXY_CHAIN_DIRECTION } from '@/constant'
@@ -25,8 +24,7 @@ export interface ConnectionsSnapshot {
   active: Connection[]
   // 本拍新关闭的连接(增量),供 store 追加进已关闭列表并落历史。
   closed: Connection[]
-  // 内核自启动的上/下行累计。clash 的连接 WS 消息原生携带,在此透传;
-  // sing-box 的连接流不带总量,由 status 统计流另行提供(见 store/overview)。
+  // 内核自启动的上/下行累计,由连接 WS 消息原生携带,在此透传。
   downloadTotal?: number
   uploadTotal?: number
 }
@@ -52,11 +50,8 @@ export interface ConnectionAccessor {
   inboundUser(connection: Connection): string
   sniffHost(connection: Connection): string
   remoteAddress(connection: Connection): string
-  // 以下三项为 sing-box 原生字段;clash 无对应数据,返回空串(展示为 '-')。
-  protocol(connection: Connection): string
-  outboundType(connection: Connection): string
-  fromOutbound(connection: Connection): string
-  // 仅 clash 支持的 smart 降级标记;sing-box 返回 undefined。
+  isDirect(connection: Connection): boolean
+  // smart 内核的降级标记;非 smart 时为 undefined。
   smartBlock(connection: Connection): string | undefined
 }
 
@@ -139,12 +134,6 @@ export const createGetConnectionDisplayValue =
         return accessor.remoteAddress(connection) || '-'
       case CONNECTIONS_TABLE_ACCESSOR_KEY.InboundUser:
         return accessor.inboundUser(connection)
-      case CONNECTIONS_TABLE_ACCESSOR_KEY.Protocol:
-        return accessor.protocol(connection) || '-'
-      case CONNECTIONS_TABLE_ACCESSOR_KEY.OutboundType:
-        return accessor.outboundType(connection) || '-'
-      case CONNECTIONS_TABLE_ACCESSOR_KEY.FromOutbound:
-        return accessor.fromOutbound(connection) || '-'
       case CONNECTIONS_TABLE_ACCESSOR_KEY.Close:
         return ''
     }

@@ -69,7 +69,6 @@
         </div>
         <div class="text-base-content/50 flex items-center justify-between gap-2 text-xs">
           <span>{{ $t('memoryUsage') }} {{ memoryStr }}</span>
-          <span v-if="can('goroutines')">{{ $t('goroutines') }} {{ goroutines }}</span>
         </div>
       </div>
     </div>
@@ -83,14 +82,12 @@ import {
   formatTimeSeriesTooltipParam,
 } from '@/components/charts/chartTooltip'
 import type { ChartTooltipParam } from '@/components/charts/chartTypes'
-import { can } from '@/assembly/backend'
 import { prettyBytesHelper } from '@/helper/utils'
 import { downloadTotal, overviewActiveConnections, uploadTotal } from '@/store/connections'
 import {
   connectionsHistory,
   downloadSpeed,
   downloadSpeedHistory,
-  goroutines,
   memory,
   timeSaved,
   uploadSpeed,

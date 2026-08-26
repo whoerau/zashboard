@@ -1,6 +1,6 @@
 {
   "name": "zashboard",
-  "version": "3.22.0",
+  "version": "3.23.0",
   "description": "A Dashboard Using Clash API",
   "license": "MIT",
   "type": "module",
@@ -14,7 +14,6 @@
     "build:sarasa-only": "FONT=sarasa vite build",
     "dev": "vite",
     "format": "prettier --write src/",
-    "generate": "buf generate",
     "lint": "eslint . --fix",
     "prepare": "husky",
     "preview": "vite preview",
@@ -22,9 +21,6 @@
     "type-check": "vue-tsc --build --force"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.13.0",
-    "@connectrpc/connect": "^2.1.2",
-    "@connectrpc/connect-web": "^2.1.2",
     "@eslint/plugin-kit": "^0.7.2",
     "@fontsource/fira-sans": "^5.3.0",
     "@heroicons/vue": "^2.2.0",
@@ -33,8 +29,6 @@
     "@types/reconnectingwebsocket": "^1.0.10",
     "@types/three": "^0.185.1",
     "@vueuse/core": "^14.4.0",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
     "axios": "^1.19.0",
     "buffer": "^6.0.3",
     "countup.js": "^2.10.1",
@@ -54,7 +48,6 @@
     "subsetted-fonts": "1.0.4",
     "three": "^0.185.1",
     "tippy.js": "^6.3.7",
-    "uqr": "^0.1.3",
     "uuid": "^14.0.1",
     "vite-plugin-pwa": "^1.3.0",
     "vue": "^3.5.40",
@@ -66,8 +59,6 @@
     "workbox-window": "^7.4.1"
   },
   "devDependencies": {
-    "@bufbuild/buf": "^1.72.0",
-    "@bufbuild/protoc-gen-es": "^2.13.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@tsconfig/node22": "^22.0.5",
     "@types/lodash": "^4.17.24",

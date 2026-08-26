@@ -16,9 +16,9 @@ export type SettingsCategory = {
 }
 
 export const DEFAULT_SETTINGS_MENU_ORDER = [
+  SETTINGS_MENU_KEY.backend,
   SETTINGS_MENU_KEY.general,
   SETTINGS_MENU_KEY.overview,
-  SETTINGS_MENU_KEY.backend,
   SETTINGS_MENU_KEY.proxies,
   SETTINGS_MENU_KEY.connections,
 ]
@@ -337,11 +337,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       {
         key: `${SETTINGS_MENU_KEY.proxies}.displayGlobalByMode`,
         label: 'displayGlobalByMode',
-        section: 'settingsSectionProxyDisplay',
-      },
-      {
-        key: `${SETTINGS_MENU_KEY.proxies}.customGlobalNode`,
-        label: 'customGlobalNode',
         section: 'settingsSectionProxyDisplay',
       },
       {

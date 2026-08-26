@@ -86,6 +86,9 @@ const getNetwork = (c: ClashConnectionRawMessage) => {
 const getHostname = (c: ClashConnectionRawMessage) =>
   c.metadata.host || c.metadata.sniffHost || c.metadata.destinationIP
 
+const getFinalProxyType = (c: ClashConnectionRawMessage) =>
+  proxyMap.value[head(c.chains) || '']?.type.toLowerCase()
+
 export const connectionAccessor: ConnectionAccessor = {
   chains: (connection) => asClash(connection).chains,
   download: (connection) => asClash(connection).download,
@@ -122,9 +125,8 @@ export const connectionAccessor: ConnectionAccessor = {
   },
   destination: (connection) => {
     const clash = asClash(connection)
-    const finalProxyType = proxyMap.value[head(clash.chains) || '']?.type.toLowerCase()
 
-    if (finalProxyType === PROXY_TYPE.Direct && clash.metadata.remoteDestination) {
+    if (getFinalProxyType(clash) === PROXY_TYPE.Direct && clash.metadata.remoteDestination) {
       return clash.metadata.remoteDestination
     }
 
@@ -137,10 +139,7 @@ export const connectionAccessor: ConnectionAccessor = {
   },
   sniffHost: (connection) => asClash(connection).metadata.sniffHost,
   remoteAddress: (connection) => asClash(connection).metadata.remoteDestination,
-  // clash 不提供这些字段。
-  protocol: () => '',
-  outboundType: () => '',
-  fromOutbound: () => '',
+  isDirect: (connection) => getFinalProxyType(asClash(connection)) === PROXY_TYPE.Direct,
   smartBlock: (connection) => asClash(connection).metadata.smartBlock,
 }
 

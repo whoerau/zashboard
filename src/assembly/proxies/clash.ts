@@ -95,7 +95,7 @@ export const fetchProxies = async () => {
 
   proxyProviederList.value = providers
 
-  const smartGroups: string[] = []
+  let includesSmartGroup = false
 
   Object.entries(proxyMap.value).forEach(([name, proxy]) => {
     const iconReflect = iconReflectList.value.find((icon) => icon.name === name)
@@ -108,12 +108,12 @@ export const fetchProxies = async () => {
     }
 
     if (proxy.type.toLowerCase() === PROXY_TYPE.Smart) {
-      smartGroups.push(name)
+      includesSmartGroup = true
     }
   })
 
-  if (smartGroups.length > 0) {
-    initSmartWeights(smartGroups)
+  if (includesSmartGroup) {
+    initSmartWeights()
   }
 }
 

@@ -1,13 +1,10 @@
 // 组装层 · 版本与升级。
-// fetchVersionAPI 按通道选择 Clash /version 或 sing-box gRPC getVersion,
-// 并把结果统一成 { data: { version } } 形状。
 // 版本字符串是 core 轴(assembly/backend.ts)的唯一来源:这里探测完成后写入 core,
 // 后端切换的瞬间先重置为 'unknown',避免沿用上一个后端的结论。
 import { fetchClashVersion, restartCoreAPI, upgradeCoreAPI, upgradeUIAPI } from '@/api/clash'
 import { canUseCoreUIUpdater, waitForLanRulesManifestCheck } from '@/assembly/rules'
 import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
-import SingBoxLogo from '@/assets/images/sing-box.svg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
 import { createGenerationGuard } from '@/helper/generationGuard'
 import { getRequestErrorMessage } from '@/helper/requestError'
@@ -26,7 +23,7 @@ import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store
 import { activeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
 import { computed, nextTick, ref } from 'vue'
-import { apiVersion, can, Channel, channel, core, Core, resetCore } from './backend'
+import { can, core, Core, resetCore } from './backend'
 
 export const version = ref()
 export const isCoreUpdateAvailable = ref(false)
@@ -44,14 +41,9 @@ export type BackendProbe = {
 
 export const backendProbe = ref<BackendProbe | undefined>()
 
-// sing-box 内核启动时刻(ms epoch);0 表示未知 / 当前后端无此能力。
-// 仅 sing-box API(GetStartedAt)提供,Clash /version 无运行时长。
-export const startedAt = ref(0)
-
 // honk 的 /version 返回 "honk <semver>"(见 honk-core/src/clash_api.rs 的 version handler)。
 const detectCore = (versionString: string): Core => {
   if (!versionString) return Core.Unknown
-  if (versionString.includes('sing-box')) return Core.Singbox
   if (/\bhonk\b/i.test(versionString)) return Core.Honk
   return Core.Mihomo
 }
@@ -59,8 +51,6 @@ const detectCore = (versionString: string): Core => {
 // 内核品牌的展示信息(logo / 官网链接)。纯展示,不是能力门控,故允许 view 使用。
 export const coreBrand = computed(() => {
   switch (core.value) {
-    case Core.Singbox:
-      return { logo: SingBoxLogo, url: 'https://github.com/sagernet/sing-box' }
     case Core.Honk:
       return { logo: HonkLogo, url: 'https://github.com/Glassyiris/honk' }
     default:
@@ -87,52 +77,13 @@ export const mihomo = computed<[MIHOMO, string] | undefined>(() => {
   }
 })
 
-interface RuntimeVersion {
-  version: string
-  apiVersion: number
-}
-
-const fetchSingboxVersion = async (): Promise<RuntimeVersion> => {
-  const { getSingboxClient } = await import('@/api/singbox/client')
-  const client = getSingboxClient()?.client
-  if (!client) return { version: 'sing-box', apiVersion: 0 }
-  const v = await client.getVersion({})
-  const version = v.version.includes('sing-box') ? v.version : `sing-box ${v.version}`
-  return { version, apiVersion: v.apiVersion }
-}
-
-const fetchRuntimeVersion = async (singboxBackend: boolean): Promise<RuntimeVersion> => {
-  if (singboxBackend) return fetchSingboxVersion()
-
-  const { data } = await fetchClashVersion()
-  return { version: data.version, apiVersion: 0 }
-}
-
-export const fetchVersionAPI = async () => {
-  const runtime = await fetchRuntimeVersion(channel.value === Channel.Singbox)
-
-  apiVersion.value = runtime.apiVersion
-  return { data: { version: runtime.version } }
-}
-
-const fetchSingboxStartedAt = async (): Promise<number> => {
-  const { getSingboxClient } = await import('@/api/singbox/client')
-  const client = getSingboxClient()?.client
-  if (!client) return 0
-  try {
-    const res = await client.getStartedAt({})
-    return Number(res.startedAt)
-  } catch {
-    return 0
-  }
-}
+export const fetchVersionAPI = () => fetchClashVersion()
 
 const versionRequestGuard = createGenerationGuard()
 
 const resetVersionState = () => {
   resetCore()
   version.value = ''
-  startedAt.value = 0
   isCoreUpdateAvailable.value = false
 }
 
@@ -146,12 +97,11 @@ const probeBackend = async (backend: Backend, generation: number) => {
     versionRequestGuard.isCurrent(generation) && activeBackend.value?.uuid === backend.uuid
 
   try {
-    const runtime = await fetchRuntimeVersion(backend.type === 'singbox')
+    const { data } = await fetchVersionAPI()
     if (!isCurrentRequest()) return
 
-    version.value = runtime.version
-    core.value = detectCore(runtime.version)
-    apiVersion.value = runtime.apiVersion
+    version.value = data?.version || ''
+    core.value = detectCore(version.value)
     backendProbe.value = {
       uuid: backend.uuid,
       status: 'connected',
@@ -159,10 +109,6 @@ const probeBackend = async (backend: Backend, generation: number) => {
       message: '',
     }
 
-    const backendStartedAt = can('startedAt') ? await fetchSingboxStartedAt() : 0
-    if (!isCurrentRequest()) return
-
-    startedAt.value = backendStartedAt
     if (!can('coreUpdateCheck') || !checkUpgradeCore.value || backend.disableUpgradeCore) return
 
     const updateAvailable = await fetchBackendUpdateAvailableAPI().catch((error) => {

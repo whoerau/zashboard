@@ -1,7 +1,6 @@
-// Route rule snapshots through one race-safe facade; sing-box has no rule list.
-// 通过单一竞态安全门面路由规则快照；sing-box 不提供规则列表。
-import { toggleRuleDisabledAPI, toggleRuleDisabledSingBoxAPI } from '@/api/clash'
-import { Channel, channel } from '@/assembly/backend'
+// Keep rule snapshots behind one race-safe facade; upstream now has only Clash.
+// 规则快照继续由单一竞态安全门面管理；上游现仅保留 Clash。
+import { toggleRuleDisabledAPI, toggleRuleDisabledRefindAPI } from '@/api/clash'
 import { RULE_TAB_TYPE } from '@/constant'
 import { getBackendScopedSnapshot } from '@/helper/backendSnapshot'
 import { createGenerationGuard } from '@/helper/generationGuard'
@@ -24,6 +23,7 @@ import { getUrlFromBackend } from '@/helper/utils'
 import { activeBackend } from '@/store/setup'
 import type { Rule, RuleProvider } from '@/types'
 import { computed, ref, watch } from 'vue'
+import * as clash from './clash'
 
 const EMPTY_LAN_RULES_MANIFEST: LanRulesManifest = {
   version: 2,
@@ -40,7 +40,7 @@ const currentBackendKey = computed(() => {
   const backend = activeBackend.value
   return backend ? `${backend.uuid}:${getUrlFromBackend(backend)}` : ''
 })
-const currentRulesSnapshotKey = computed(() => `${channel.value}:${currentBackendKey.value}`)
+const currentRulesSnapshotKey = computed(() => currentBackendKey.value)
 const rulesSnapshotKey = ref('')
 const rulesSnapshot = ref<Rule[]>([])
 const ruleProviderSnapshot = ref<RuleProvider[]>([])
@@ -88,7 +88,7 @@ export const waitForLanRulesManifestCheck = () => {
 
 const shouldFetchLanRulesManifest = () => {
   const backend = activeBackend.value
-  if (channel.value !== Channel.Clash || !backend) return false
+  if (!backend) return false
   return isLanRulesManifestSameOrigin(document.baseURI, getUrlFromBackend(backend))
 }
 
@@ -140,9 +140,6 @@ export const renderRulesProvider = computed(() => {
   )
 })
 
-const load = (requestChannel: Channel) =>
-  requestChannel === Channel.Singbox ? import('./singbox') : import('./clash')
-
 const rulesRequestGuard = createGenerationGuard()
 
 const clearRulesSnapshot = () => {
@@ -155,9 +152,8 @@ const clearRulesSnapshot = () => {
 
 export const fetchRules = async () => {
   const generation = rulesRequestGuard.next()
-  const requestChannel = channel.value
   const backendKey = currentBackendKey.value
-  const requestSnapshotKey = `${requestChannel}:${backendKey}`
+  const requestSnapshotKey = backendKey
 
   // Drop a previous backend's data before any new request can fail or race.
   // 在新请求可能失败或竞态前，先丢弃上一后端的数据。
@@ -171,15 +167,10 @@ export const fetchRules = async () => {
     : Promise.resolve({ status: 'missing' } as const)
 
   const isCurrentRequest = () =>
-    rulesRequestGuard.isCurrent(generation) &&
-    channel.value === requestChannel &&
-    currentBackendKey.value === backendKey
+    rulesRequestGuard.isCurrent(generation) && currentBackendKey.value === backendKey
 
   try {
-    const [snapshot, manifestResult] = await Promise.all([
-      (await load(requestChannel)).fetchRules(),
-      manifestRequest,
-    ])
+    const [snapshot, manifestResult] = await Promise.all([clash.fetchRules(), manifestRequest])
     if (!isCurrentRequest()) return
 
     rulesSnapshot.value = snapshot.rules
@@ -231,9 +222,12 @@ export const fetchRules = async () => {
   }
 }
 
+// 规则启用切换有两套端点: reFind 的规则带稳定 uuid(PUT /rules/{uuid}),
+// mihomo 按索引批量切换(PATCH /rules/disable)。用哪套由响应数据自己决定 ——
+// rule.uuid 是确定信息,比 core 轴的版本字符串嗅探可靠,故不走能力表。
 export const toggleRuleDisabled = (rule: Rule, disabled: boolean) =>
   rule.uuid
-    ? toggleRuleDisabledSingBoxAPI(rule.uuid)
+    ? toggleRuleDisabledRefindAPI(rule.uuid)
     : toggleRuleDisabledAPI({ [rule.index]: disabled })
 
 export { updateRuleProviderAPI } from '@/api/clash'

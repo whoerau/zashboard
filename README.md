@@ -24,10 +24,8 @@ You can access the online zashboard at the following link:
 
 You can download the zashboard files here:
 
-> All builds include sing-box native API support.
-
 > [!WARNING]
-> Support for sing-box will be removed in the next release. [Learn more about this
+> Support for sing-box has been removed. [Learn more about this
 > decision](./docs/sing-box-deprecation.md).
 
 release:
@@ -63,7 +61,7 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 
 1. The connection table can be dragged with the left mouse button, and right-clicking can copy cell content.
 2. Right-clicking on a node / node group card will perform a speedtest for the node / node group.
-3. The proxy group sorting is based on the node order in the GLOBAL group. In Mihomo, it follows the configuration file order, while in sing-box, route.final is placed first, with the rest following the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
+3. The proxy group sorting is based on the node order in the GLOBAL group, which follows the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
 4. The dashboard supports PWA (Progressive Web App), which can provide a native app-like experience on mobile devices through "Add to Home Screen".
 5. After confirming that `lan-rules.json` is absent, the dashboard update button and auto-upgrade may call the core's `/upgrade/ui` endpoint. Configure Mihomo's `external-ui-url` as `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`; otherwise the core may install its default dashboard instead of this fork. When managed LAN rules are active or cannot be verified, built-in updates are disabled because Mihomo replaces the whole UI directory; use `whoerctl zashboard update`, which preserves the sidecar.
 
@@ -71,7 +69,7 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 
 1. 连接表格可被鼠标左键拖动，右键可复制单元格内容。
 2. 右键点击节点/节点组卡片可对节点/节点组进行测速。
-3. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，在Mihomo中会是按配置文件的顺序，在sing-box中会把route.final放到第一位，其余按照配置文件顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
+3. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，即按配置文件的顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
 4. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
 5. 确认 `lan-rules.json` 不存在后，面板更新按钮及自动更新才可调用核心的 `/upgrade/ui`。请把 Mihomo 的 `external-ui-url` 配置为 `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`；否则核心可能安装其默认面板，而不是本 fork。受管 LAN 规则生效或无法验证时，内置更新会被禁用，因为 Mihomo 会替换整个 UI 目录；请使用会保留 sidecar 的 `whoerctl zashboard update`。
 
@@ -110,9 +108,5 @@ http://host:port/#/setup?hostname=ipordomain&port=9090&secret=123456
 
 7. **`disableTunMode`**
    - Set '1' to hide tun switch
-
-8. **`type`**
-   - Selects the backend API: `clash` (Clash REST/WS) or `singbox` (sing-box native).
-   - Default: `clash`
 
 ### I code just for fun, not for money. If you really want to donate, please consider donating to [UNICEF](https://www.unicef.org/) to help hungry children.
