@@ -4,7 +4,13 @@ import {
   getConnectionVisibleSearchValues,
 } from '@/assembly/connections'
 import { lanDeviceResolver } from '@/assembly/rules'
-import { CONNECTION_TAB_TYPE, SORT_DIRECTION, SORT_TYPE } from '@/constant'
+import {
+  CONNECTION_TAB_TYPE,
+  SORT_DIRECTION,
+  SORT_TYPE,
+  isConnectionGroupableKey,
+  type ConnectionGroupableKey,
+} from '@/constant'
 import {
   getChainsStringFromConnection,
   getConnectionDownload,
@@ -46,6 +52,18 @@ export const connectionSortDirection = useStorage<SORT_DIRECTION>(
   'config/connection-sort-direction',
   SORT_DIRECTION.ASC,
 )
+export const connectionCardGroupKey = useStorage<ConnectionGroupableKey | null>(
+  'config/connection-card-group-key',
+  null,
+)
+
+// 导入配置或旧版本遗留值不能进入分组读取器，否则可能把非展示列当成 accessor 使用。
+if (
+  connectionCardGroupKey.value !== null &&
+  !isConnectionGroupableKey(connectionCardGroupKey.value)
+) {
+  connectionCardGroupKey.value = null
+}
 
 export const quickFilterRegex = useStorage<string>('config/quick-filter-regex', 'direct|dns-out')
 export const quickFilterEnabled = useStorage<boolean>('config/quick-filter-enabled', false)

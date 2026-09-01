@@ -467,3 +467,15 @@ test('uses the built-in GeoIP database URL for empty settings', () => {
     'https://custom.example/db.mmdb',
   )
 })
+
+test('keeps connection GeoIP results scoped to the active settings generation', () => {
+  const source = readFileSync(
+    new URL('../src/api/connectionGeoipDatabase.ts', import.meta.url),
+    'utf8',
+  )
+
+  assert.match(source, /const geoInfoGenerationGuard = createGenerationGuard\(\)/)
+  assert.match(source, /resolveGeoIPDatabaseURL\(/)
+  assert.match(source, /geoInfoGenerationGuard\.isCurrent\(generation\)/)
+  assert.match(source, /watch\(language,[\s\S]*?geoInfoGenerationGuard\.next\(\)/)
+})
