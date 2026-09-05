@@ -42,9 +42,6 @@ export const getLanRulesManifestResultStatus = (
   return resultStatus === 'loaded' && matchesRules ? 'active' : 'unavailable'
 }
 
-export const canUseCoreUIUpdaterForLanRulesStatus = (status: LanRulesManifestStatus) =>
-  status === 'missing'
-
 export const getLanRulesManifestFailureStatus = (
   hasCurrentManifest: boolean,
   hasBackend: boolean,

@@ -11,7 +11,6 @@ import {
   resolveRulesDeviceSelection,
 } from '@/helper/lanDevice'
 import {
-  canUseCoreUIUpdaterForLanRulesStatus,
   filterLanManifestSubRules,
   getLanRulesManifestFailureStatus,
   getLanRulesManifestRequestStatus,
@@ -69,9 +68,6 @@ export const lanDeviceResolver = computed(() => createLanDeviceResolver(rules.va
 export const lanRulesManifest = ref<LanRulesManifest>(EMPTY_LAN_RULES_MANIFEST)
 const lanRulesManifestSnapshotKey = ref('')
 export const lanRulesManifestStatus = ref<LanRulesManifestStatus>('inactive')
-export const canUseCoreUIUpdater = computed(() =>
-  canUseCoreUIUpdaterForLanRulesStatus(lanRulesManifestStatus.value),
-)
 export const lanRulesDevices = computed(() =>
   getBackendScopedSnapshot(
     lanRulesManifest.value.devices,
@@ -84,35 +80,6 @@ const shouldFetchLanRulesManifest = () => {
   const backend = activeBackend.value
   if (!backend) return false
   return isLanRulesManifestSameOrigin(document.baseURI, getUrlFromBackend(backend))
-}
-
-const uiUpdaterCheckGuard = createGenerationGuard()
-
-export const confirmCanUseCoreUIUpdater = async () => {
-  const generation = uiUpdaterCheckGuard.next()
-  const backendKey = currentBackendKey.value
-  const hasBackend = Boolean(activeBackend.value)
-  const sameOrigin = shouldFetchLanRulesManifest()
-
-  if (!hasBackend || !sameOrigin) {
-    lanRulesManifestStatus.value = getLanRulesManifestRequestStatus(hasBackend, sameOrigin)
-    return false
-  }
-
-  // Reconfirm immediately before every destructive update; cached absence can go stale.
-  // 每次破坏性更新前都重新确认；缓存的“不存在”状态可能已经过期。
-  lanRulesManifestStatus.value = 'checking'
-  const result = await loadLanRulesManifest(new URL('lan-rules.json', document.baseURI))
-  if (!uiUpdaterCheckGuard.isCurrent(generation) || currentBackendKey.value !== backendKey) {
-    return false
-  }
-
-  const matchesCurrentRules =
-    result.status === 'loaded' &&
-    rulesSnapshotKey.value === backendKey &&
-    isLanRulesManifestForRules(result.manifest, rulesSnapshot.value)
-  lanRulesManifestStatus.value = getLanRulesManifestResultStatus(result.status, matchesCurrentRules)
-  return canUseCoreUIUpdaterForLanRulesStatus(lanRulesManifestStatus.value)
 }
 
 // Mark the check pending as soon as a backend changes, before page initialization can await.

@@ -63,7 +63,7 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. Right-clicking on a node / node group card will perform a speedtest for the node / node group.
 3. The proxy group sorting is based on the node order in the GLOBAL group, which follows the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
 4. The dashboard supports PWA (Progressive Web App), which can provide a native app-like experience on mobile devices through "Add to Home Screen".
-5. After confirming that `lan-rules.json` is absent, the dashboard update button and auto-upgrade may call the core's `/upgrade/ui` endpoint. Configure Mihomo's `external-ui-url` as `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`; otherwise the core may install its default dashboard instead of this fork. When managed LAN rules are active or cannot be verified, built-in updates are disabled because Mihomo replaces the whole UI directory; use `whoerctl zashboard update`, which preserves the sidecar.
+5. Manual and automatic dashboard updates call the core's `/upgrade/ui` endpoint. Configure Mihomo's `external-ui-url` as `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`; otherwise the core may install its default dashboard instead of this fork. Manual updates warn that `lan-rules.json` may be replaced; automatic updates proceed without confirmation. Use `whoerctl zashboard update` when the sidecar must be preserved.
 
 ## 提示
 
@@ -71,13 +71,13 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. 右键点击节点/节点组卡片可对节点/节点组进行测速。
 3. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，即按配置文件的顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
 4. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
-5. 确认 `lan-rules.json` 不存在后，面板更新按钮及自动更新才可调用核心的 `/upgrade/ui`。请把 Mihomo 的 `external-ui-url` 配置为 `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`；否则核心可能安装其默认面板，而不是本 fork。受管 LAN 规则生效或无法验证时，内置更新会被禁用，因为 Mihomo 会替换整个 UI 目录；请使用会保留 sidecar 的 `whoerctl zashboard update`。
+5. 手动及自动面板更新都会调用核心的 `/upgrade/ui`。请把 Mihomo 的 `external-ui-url` 配置为 `https://github.com/whoerau/zashboard/releases/latest/download/dist.zip`；否则核心可能安装其默认面板，而不是本 fork。手动更新会警告可能替换 `lan-rules.json`；自动更新不经确认直接执行。需要保留 sidecar 时请使用 `whoerctl zashboard update`。
 
 ## LAN rules sidecar
 
-Rules device scoping requires a configuration-specific `lan-rules.json` beside `index.html`. It is intentionally not bundled in `dist.zip`: a generic release cannot safely contain one gateway's device mapping. `whoerctl mihomo gateway` generates schema version 2 automatically without device CIDRs or raw rule payloads. The browser accepts it only when the active backend has the same origin as the UI and its live rule count, digest, sub-rules, source indexes, and original policies all match. A confirmed missing sidecar leaves normal Rules visible and permits the configured core updater, which reconfirms that absence immediately before each update. A present but empty, stale, invalid, unreadable, or unverifiable sidecar leaves normal Rules visible but blocks the core updater so it cannot delete managed data. Use `whoerctl zashboard update` for those deployments; it preserves or repairs the generated sidecar.
+Rules device scoping requires a configuration-specific `lan-rules.json` beside `index.html`. It is intentionally not bundled in `dist.zip`: a generic release cannot safely contain one gateway's device mapping. `whoerctl mihomo gateway` generates schema version 2 automatically without device CIDRs or raw rule payloads. The browser accepts it only when the active backend has the same origin as the UI and its live rule count, digest, sub-rules, source indexes, and original policies all match. This custom build keeps both manual and automatic core updates available. Manual updates ask for confirmation because `/upgrade/ui` may replace the sidecar; automatic updates proceed without prompting. Use `whoerctl zashboard update` when the generated sidecar must be preserved or repaired.
 
-规则设备作用域依赖与 `index.html` 同目录、按网关配置生成的 `lan-rules.json`。通用 `dist.zip` 不会打包某台网关的设备映射；`whoerctl mihomo gateway` 会自动生成不含设备 CIDR 和原始规则 payload 的 v2 清单。浏览器仅在当前后端与 UI 同源，且实时规则数量、摘要、子规则、索引及原策略全部匹配时采用它。确认不存在清单时，仍显示普通规则并允许已配置的核心更新器；每次更新前都会立即重新确认清单仍不存在。清单存在但为空、过期、无效、不可读或无法验证时，仍显示普通规则，但会阻止核心更新器删除受管数据。这类部署请使用 `whoerctl zashboard update`，它会保留或修复生成的 sidecar。
+规则设备作用域依赖与 `index.html` 同目录、按网关配置生成的 `lan-rules.json`。通用 `dist.zip` 不会打包某台网关的设备映射；`whoerctl mihomo gateway` 会自动生成不含设备 CIDR 和原始规则 payload 的 v2 清单。浏览器仅在当前后端与 UI 同源，且实时规则数量、摘要、子规则、索引及原策略全部匹配时采用它。此定制版同时开放手动和自动核心更新。手动更新会先确认，因为 `/upgrade/ui` 可能替换 sidecar；自动更新不弹提示直接执行。需要保留或修复生成的 sidecar 时请使用 `whoerctl zashboard update`。
 
 ## URL params format
 

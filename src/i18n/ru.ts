@@ -125,13 +125,10 @@ const ru: LANG_MESSAGE = {
   noExpire: 'Нет',
   updated: 'Обновлено',
   upgradeDashboard: 'Обновить панель до новой версии',
-  dashboardUpgradeCheckingLanRules: 'Проверка управляемых LAN-правил перед обновлением панели',
-  dashboardUpgradeUnavailableLanRules:
-    'Встроенное обновление заблокировано: lan-rules.json не удалось проверить',
+  dashboardUpgradeLanRulesConfirm:
+    'Обновление может заменить lan-rules.json и отключить фильтрацию LAN-устройств. Продолжить?',
   lanDeviceRules: 'Правила LAN-устройства',
   lanDeviceGroups: 'Группы LAN-устройства',
-  dashboardUpgradeManagedLanRules:
-    'Встроенное обновление отключено для сохранения lan-rules.json; запустите whoerctl zashboard update',
   reloadConfigs: 'Перезагрузить конфигурации',
   updateConfigs: 'Обновить конфигурации',
   updateConfigsSuccess: 'Конфигурации успешно обновлены',

@@ -2,7 +2,6 @@
 // 版本字符串是 core 轴(assembly/backend.ts)的唯一来源:这里探测完成后写入 core,
 // 后端切换的瞬间先重置为 'unknown',避免沿用上一个后端的结论。
 import { fetchClashVersion, restartCoreAPI, upgradeCoreAPI, upgradeUIAPI } from '@/api/clash'
-import { confirmCanUseCoreUIUpdater } from '@/assembly/rules'
 import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
@@ -274,10 +273,6 @@ export const isUIUpdateAvailable = ref(false)
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
   if (isUIUpdateAvailable.value && autoUpgradeDashboard.value && can('dashboardUpgrade')) {
-    if (!(await confirmCanUseCoreUIUpdater())) {
-      console.warn('Skipped core dashboard upgrade to preserve lan-rules.json')
-      return
-    }
     // The gateway owns external-ui-url; managed deployments pin it to this fork's latest release.
     // 下载源由网关管理；受管部署会将其固定到本 fork 的 latest Release。
     void upgradeUIAPI().catch((error) => console.warn('Failed to auto-upgrade dashboard', error))

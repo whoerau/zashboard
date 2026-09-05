@@ -6,7 +6,6 @@ import { createGenerationGuard } from '../src/helper/generationGuard.ts'
 import { resolveGeoIPDatabaseURL } from '../src/helper/geoipDatabase.ts'
 import { createLanDeviceResolver } from '../src/helper/lanDevice.ts'
 import {
-  canUseCoreUIUpdaterForLanRulesStatus,
   createLanRulesDigest,
   filterLanManifestSubRules,
   getLanRulesManifestFailureStatus,
@@ -100,7 +99,7 @@ test('uses LAN device names in connection display and search values', () => {
   )
 })
 
-test('blocks the destructive core dashboard updater while managed LAN rules are active', () => {
+test('keeps custom manual and automatic dashboard updates available', () => {
   const source = readFileSync(
     new URL('../src/components/settings/general/GeneralSettings.vue', import.meta.url),
     'utf8',
@@ -109,20 +108,16 @@ test('blocks the destructive core dashboard updater while managed LAN rules are 
   const rules = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
 
   assert.match(source, /upgradeUIAPI/)
-  assert.match(source, /:disabled="!canUseCoreUIUpdater"/)
+  assert.match(source, /:disabled="isUIUpgrading"/)
   assert.match(source, /upgradeDashboard/)
   assert.match(source, /autoUpgradeDashboard/)
-  assert.match(version, /if \(!\(await confirmCanUseCoreUIUpdater\(\)\)\)[\s\S]*?upgradeUIAPI\(\)/)
-  const manualHandler = source.match(/const handlerClickUpgradeUI[\s\S]*?\n}/)?.[0] ?? ''
-  assert.ok(manualHandler.indexOf('confirmCanUseCoreUIUpdater()') >= 0)
-  assert.ok(
-    manualHandler.indexOf('confirmCanUseCoreUIUpdater()') < manualHandler.indexOf('upgradeUIAPI()'),
-  )
-  assert.match(
-    rules,
-    /export const confirmCanUseCoreUIUpdater[\s\S]*?loadLanRulesManifest[\s\S]*?canUseCoreUIUpdaterForLanRulesStatus/,
-  )
-  assert.match(rules, /void manifestRequest\.then\([\s\S]*?result\.status === 'loaded'/)
+  const autoToggle = source.match(/<input\s+v-model="autoUpgradeDashboard"[\s\S]*?\/>/)?.[0] ?? ''
+  assert.doesNotMatch(autoToggle, /disabled/)
+  assert.match(version, /autoUpgradeDashboard\.value[\s\S]*?void upgradeUIAPI\(\)/)
+  assert.doesNotMatch(version, /confirmCanUseCoreUIUpdater/)
+  const manualHandler = source.match(/const handlerClickUpgradeUI[\s\S]*?<\/script>/)?.[0] ?? ''
+  assert.match(manualHandler, /showConfirmDialog\([\s\S]*?upgradeUIAPI\(\)/)
+  assert.doesNotMatch(rules, /confirmCanUseCoreUIUpdater/)
   assert.match(
     rules,
     /watch\(\s*currentRulesSnapshotKey[\s\S]*?\{ immediate: true, flush: 'sync' \}/,
@@ -174,12 +169,12 @@ test('resets the source IP filter when the active backend changes', () => {
   )
 })
 
-test('fails closed and propagates errors when rule or sidecar checks fail', () => {
+test('marks sidecar failures unavailable and propagates rule errors', () => {
   const source = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
 
   assert.match(source, /import \{ useStorage \} from '@\/helper\/storage'/)
   assert.doesNotMatch(source, /from '@vueuse\/core'/)
-  assert.match(source, /canUseCoreUIUpdaterForLanRulesStatus\(lanRulesManifestStatus\.value\)/)
+  assert.match(source, /getLanRulesManifestFailureStatus/)
   assert.match(source, /catch \(error\)[\s\S]*!isCurrentRequest\(\)[\s\S]*?throw error/)
 })
 
@@ -379,7 +374,7 @@ test('distinguishes a missing LAN sidecar from unreadable or invalid responses',
   assert.deepEqual(invalid, { status: 'error' })
 })
 
-test('rechecks a previously missing LAN sidecar without using a cached result', async () => {
+test('does not cache LAN sidecar loads', async () => {
   const validManifest = {
     version: 2,
     ruleCount: 0,
@@ -404,7 +399,7 @@ test('rechecks a previously missing LAN sidecar without using a cached result', 
   })
 })
 
-test('enables the core UI updater only after a confirmed sidecar 404', () => {
+test('classifies a valid empty LAN manifest as present', () => {
   const ordinaryRules = [{ index: 0, type: 'RuleSet', payload: 'openai', proxy: 'GLOBAL' }]
   const emptyManifest = parseLanRulesManifest({
     version: 2,
@@ -427,11 +422,6 @@ test('enables the core UI updater only after a confirmed sidecar 404', () => {
   assert.equal(getLanRulesManifestFailureStatus(true, true), 'active')
   assert.equal(getLanRulesManifestFailureStatus(false, true), 'unavailable')
   assert.equal(getLanRulesManifestFailureStatus(false, false), 'inactive')
-
-  for (const status of ['inactive', 'checking', 'active', 'unavailable'] as const) {
-    assert.equal(canUseCoreUIUpdaterForLanRulesStatus(status), false)
-  }
-  assert.equal(canUseCoreUIUpdaterForLanRulesStatus('missing'), true)
 })
 
 test('rejects malformed LAN rules manifest devices and bindings', () => {

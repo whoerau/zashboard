@@ -10,8 +10,8 @@
         <div class="setting-item-label">{{ $t('upgradeDashboard') }}</div>
         <button
           :class="twMerge('btn btn-sm', isUIUpgrading ? 'animate-pulse' : '')"
-          :disabled="!canUseCoreUIUpdater"
-          :title="dashboardUpgradeDisabledTip"
+          :disabled="isUIUpgrading"
+          :title="$t('dashboardUpgradeLanRulesConfirm')"
           @click="handlerClickUpgradeUI"
         >
           <ArrowUpCircleIcon class="h-4 w-4" />
@@ -28,8 +28,6 @@
           v-model="autoUpgradeDashboard"
           class="toggle"
           type="checkbox"
-          :disabled="!canUseCoreUIUpdater"
-          :title="dashboardUpgradeDisabledTip"
         />
       </SettingItem>
     </div>
@@ -198,11 +196,6 @@
 
 <script setup lang="ts">
 import { can, showDisplayAllFeatures } from '@/assembly/backend'
-import {
-  canUseCoreUIUpdater,
-  confirmCanUseCoreUIUpdater,
-  lanRulesManifestStatus,
-} from '@/assembly/rules'
 import { upgradeUIAPI } from '@/assembly/version'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
 import SelectInput from '@/components/common/SelectInput.vue'
@@ -214,6 +207,7 @@ import { useIsSettingVisible } from '@/composables/settings'
 import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
 import { IP_INFO_API } from '@/constant'
 import { handlerUpgradeSuccess } from '@/helper'
+import { showConfirmDialog } from '@/helper/confirmDialog'
 import { notifyActionPending } from '@/helper/notification'
 import { notifyRequestError } from '@/helper/requestError'
 import { useTooltip } from '@/helper/tooltip'
@@ -282,18 +276,18 @@ const hasVisibleInteractionItems = computed(
 const showDashboardUpgrade = computed(() => can('dashboardUpgrade'))
 
 const isUIUpgrading = ref(false)
-const dashboardUpgradeDisabledTip = computed(() => {
-  if (canUseCoreUIUpdater.value) return undefined
-  if (lanRulesManifestStatus.value === 'checking') return t('dashboardUpgradeCheckingLanRules')
-  if (lanRulesManifestStatus.value === 'unavailable') {
-    return t('dashboardUpgradeUnavailableLanRules')
-  }
-  return t('dashboardUpgradeManagedLanRules')
-})
 const handlerClickUpgradeUI = async () => {
   if (isUIUpgrading.value) return
   isUIUpgrading.value = true
-  if (!(await confirmCanUseCoreUIUpdater())) {
+
+  // Both updater paths use the custom release; only the manual path can ask first.
+  // 两种更新路径都使用定制版发布；仅手动路径能在更新前询问。
+  const { confirmed } = await showConfirmDialog({
+    title: t('upgradeDashboard'),
+    message: t('dashboardUpgradeLanRulesConfirm'),
+    confirmButtonClass: 'btn-warning',
+  })
+  if (!confirmed) {
     isUIUpgrading.value = false
     return
   }

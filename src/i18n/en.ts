@@ -123,13 +123,10 @@ const en = {
   noExpire: 'No expiry',
   updated: 'Updated',
   upgradeDashboard: 'Upgrade dashboard',
-  dashboardUpgradeCheckingLanRules: 'Checking managed LAN rules before dashboard upgrade',
-  dashboardUpgradeUnavailableLanRules:
-    'Built-in upgrade is blocked because lan-rules.json could not be verified',
+  dashboardUpgradeLanRulesConfirm:
+    'This update may replace lan-rules.json and disable LAN device filtering. Continue?',
   lanDeviceRules: 'LAN device rules',
   lanDeviceGroups: 'LAN device groups',
-  dashboardUpgradeManagedLanRules:
-    'Built-in upgrade is disabled to preserve lan-rules.json; run whoerctl zashboard update',
   reloadConfigs: 'Reload configs',
   updateConfigs: 'Update configs',
   updateConfigsSuccess: 'Configs updated successfully',

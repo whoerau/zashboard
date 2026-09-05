@@ -125,12 +125,10 @@ const zhTW: LANG_MESSAGE = {
   noExpire: '不限時',
   updated: '更新於',
   upgradeDashboard: '升級面板',
-  dashboardUpgradeCheckingLanRules: '正在檢查受管 LAN 規則，暫不可升級面板',
-  dashboardUpgradeUnavailableLanRules: '無法驗證 lan-rules.json，已阻止內建升級',
+  dashboardUpgradeLanRulesConfirm:
+    '本次更新可能取代 lan-rules.json 並停用 LAN 裝置篩選，是否繼續？',
   lanDeviceRules: 'LAN 裝置規則',
   lanDeviceGroups: 'LAN 裝置群組',
-  dashboardUpgradeManagedLanRules:
-    '為保留 lan-rules.json，已停用內建升級；請執行 whoerctl zashboard update',
   reloadConfigs: '重載配置',
   updateConfigs: '更新配置',
   updateConfigsSuccess: '配置更新成功',
