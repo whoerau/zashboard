@@ -6,8 +6,12 @@ import { createGenerationGuard } from '../src/helper/generationGuard.ts'
 import { resolveGeoIPDatabaseURL } from '../src/helper/geoipDatabase.ts'
 import { createLanDeviceResolver } from '../src/helper/lanDevice.ts'
 import {
+  canUseCoreUIUpdaterForLanRulesStatus,
   createLanRulesDigest,
   filterLanManifestSubRules,
+  getLanRulesManifestFailureStatus,
+  getLanRulesManifestRequestStatus,
+  getLanRulesManifestResultStatus,
   isLanRulesManifestForRules,
   isLanRulesManifestSameOrigin,
   loadLanRulesManifest,
@@ -108,7 +112,17 @@ test('blocks the destructive core dashboard updater while managed LAN rules are 
   assert.match(source, /:disabled="!canUseCoreUIUpdater"/)
   assert.match(source, /upgradeDashboard/)
   assert.match(source, /autoUpgradeDashboard/)
-  assert.match(version, /waitForLanRulesManifestCheck\(\)[\s\S]*?!canUseCoreUIUpdater\.value/)
+  assert.match(version, /if \(!\(await confirmCanUseCoreUIUpdater\(\)\)\)[\s\S]*?upgradeUIAPI\(\)/)
+  const manualHandler = source.match(/const handlerClickUpgradeUI[\s\S]*?\n}/)?.[0] ?? ''
+  assert.ok(manualHandler.indexOf('confirmCanUseCoreUIUpdater()') >= 0)
+  assert.ok(
+    manualHandler.indexOf('confirmCanUseCoreUIUpdater()') < manualHandler.indexOf('upgradeUIAPI()'),
+  )
+  assert.match(
+    rules,
+    /export const confirmCanUseCoreUIUpdater[\s\S]*?loadLanRulesManifest[\s\S]*?canUseCoreUIUpdaterForLanRulesStatus/,
+  )
+  assert.match(rules, /void manifestRequest\.then\([\s\S]*?result\.status === 'loaded'/)
   assert.match(
     rules,
     /watch\(\s*currentRulesSnapshotKey[\s\S]*?\{ immediate: true, flush: 'sync' \}/,
@@ -134,7 +148,8 @@ test('applies proxy folders to device-scoped groups without counting generated c
   const folders = readFileSync(new URL('../src/store/proxyFolders.ts', import.meta.url), 'utf8')
 
   assert.doesNotMatch(composable, /isProxyFolderModeActive\.value \|\| proxiesDevice\.value/)
-  assert.match(folders, /getLanDeviceScopedProxyName\(groupName, device\)/)
+  assert.match(folders, /groupMatchesFolderRule[\s\S]*?getLanDeviceBaseProxyName\(groupName\)/)
+  assert.match(folders, /foldersOfGroup[\s\S]*?getLanDeviceBaseProxyName\(groupName\)/)
   assert.match(folders, /filter\(\(name\) => !getLanDeviceFromScopedProxyName\(name\)\)/)
 })
 
@@ -155,7 +170,7 @@ test('resets the source IP filter when the active backend changes', () => {
 
   assert.match(
     source,
-    /activeBackend\.value\?\.uuid[\s\S]*?backendID !== previousBackendID[\s\S]*?sourceIPFilter\.value = null/,
+    /`\$\{backend\.uuid}:\$\{getUrlFromBackend\(backend\)}`[\s\S]*?backendKey !== previousBackendKey[\s\S]*?sourceIPFilter\.value = null/,
   )
 })
 
@@ -164,11 +179,8 @@ test('fails closed and propagates errors when rule or sidecar checks fail', () =
 
   assert.match(source, /import \{ useStorage \} from '@\/helper\/storage'/)
   assert.doesNotMatch(source, /from '@vueuse\/core'/)
-  assert.match(source, /export const canUseCoreUIUpdater = computed\(\(\) =>[\s\S]*?'inactive'/)
-  assert.match(
-    source,
-    /catch \(error\)[\s\S]*!isCurrentRequest\(\)[\s\S]*?'unavailable'[\s\S]*?throw error/,
-  )
+  assert.match(source, /canUseCoreUIUpdaterForLanRulesStatus\(lanRulesManifestStatus\.value\)/)
+  assert.match(source, /catch \(error\)[\s\S]*!isCurrentRequest\(\)[\s\S]*?throw error/)
 })
 
 test('shares rebuilt source IP option arrays with the selected filter', () => {
@@ -245,10 +257,34 @@ test('limits page-level latency targets to recursively reachable device leaves',
 
 test('matches device proxy searches against the visible name', () => {
   const source = readFileSync(new URL('../src/composables/proxySearch.ts', import.meta.url), 'utf8')
+  const render = readFileSync(
+    new URL('../src/composables/renderProxies.ts', import.meta.url),
+    'utf8',
+  )
   const rules = readFileSync(new URL('../src/assembly/rules/index.ts', import.meta.url), 'utf8')
 
-  assert.match(source, /matchProxySearchKeyword\(getLanDeviceScopedProxyName\(name, lanDevice\)\)/)
+  assert.match(
+    source,
+    /matchProxySearchKeyword\(getLanDeviceScopedProxyName\(name, lanDevice\), keyword\)/,
+  )
+  assert.match(
+    render,
+    /matchLanDeviceProxySearchKeyword\(name, proxiesDevice\.value, (?:keyword|groupKeyword)\)/,
+  )
   assert.match(rules, /getLanDeviceScopedProxyName\(rule\.proxy, rulesDevice\.value\)/)
+})
+
+test('uses the active Proxies device scope for every visible proxy name', () => {
+  for (const path of [
+    '../src/components/proxies/ProxyGroupHeader.vue',
+    '../src/components/proxies/ProxyGroupHeaderForMobile.vue',
+    '../src/components/proxies/ProxyNodeCard.vue',
+    '../src/components/proxies/ProxyPreview.vue',
+  ]) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8')
+    assert.match(source, /proxiesDevice/)
+    assert.doesNotMatch(source, /getLanDeviceFromScopedProxyName/)
+  }
 })
 
 test('skips CIDR labels whose address family does not match', () => {
@@ -341,6 +377,61 @@ test('distinguishes a missing LAN sidecar from unreadable or invalid responses',
   assert.deepEqual(missing, { status: 'missing' })
   assert.deepEqual(failed, { status: 'error' })
   assert.deepEqual(invalid, { status: 'error' })
+})
+
+test('rechecks a previously missing LAN sidecar without using a cached result', async () => {
+  const validManifest = {
+    version: 2,
+    ruleCount: 0,
+    rulesDigest: 'cbf29ce484222325',
+    devices: [],
+  }
+  let sidecarExists = false
+  const fetcher = async (_input: string | URL, init?: RequestInit) => {
+    assert.equal(init?.cache, 'no-store')
+    return sidecarExists
+      ? new Response(JSON.stringify(validManifest))
+      : new Response('', { status: 404 })
+  }
+
+  assert.deepEqual(await loadLanRulesManifest('https://gateway.example/lan-rules.json', fetcher), {
+    status: 'missing',
+  })
+  sidecarExists = true
+  assert.deepEqual(await loadLanRulesManifest('https://gateway.example/lan-rules.json', fetcher), {
+    status: 'loaded',
+    manifest: validManifest,
+  })
+})
+
+test('enables the core UI updater only after a confirmed sidecar 404', () => {
+  const ordinaryRules = [{ index: 0, type: 'RuleSet', payload: 'openai', proxy: 'GLOBAL' }]
+  const emptyManifest = parseLanRulesManifest({
+    version: 2,
+    ruleCount: ordinaryRules.length,
+    rulesDigest: createLanRulesDigest(ordinaryRules, []),
+    devices: [],
+  })
+  const emptyStatus = getLanRulesManifestResultStatus(
+    'loaded',
+    isLanRulesManifestForRules(emptyManifest, ordinaryRules),
+  )
+
+  assert.equal(getLanRulesManifestRequestStatus(false, false), 'inactive')
+  assert.equal(getLanRulesManifestRequestStatus(true, true), 'checking')
+  assert.equal(getLanRulesManifestRequestStatus(true, false), 'unavailable')
+  assert.equal(getLanRulesManifestResultStatus('missing'), 'missing')
+  assert.equal(emptyStatus, 'active')
+  assert.equal(getLanRulesManifestResultStatus('loaded'), 'unavailable')
+  assert.equal(getLanRulesManifestResultStatus('error'), 'unavailable')
+  assert.equal(getLanRulesManifestFailureStatus(true, true), 'active')
+  assert.equal(getLanRulesManifestFailureStatus(false, true), 'unavailable')
+  assert.equal(getLanRulesManifestFailureStatus(false, false), 'inactive')
+
+  for (const status of ['inactive', 'checking', 'active', 'unavailable'] as const) {
+    assert.equal(canUseCoreUIUpdaterForLanRulesStatus(status), false)
+  }
+  assert.equal(canUseCoreUIUpdaterForLanRulesStatus('missing'), true)
 })
 
 test('rejects malformed LAN rules manifest devices and bindings', () => {

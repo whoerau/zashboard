@@ -11,10 +11,15 @@ import {
   resolveRulesDeviceSelection,
 } from '@/helper/lanDevice'
 import {
+  canUseCoreUIUpdaterForLanRulesStatus,
   filterLanManifestSubRules,
+  getLanRulesManifestFailureStatus,
+  getLanRulesManifestRequestStatus,
+  getLanRulesManifestResultStatus,
   isLanRulesManifestForRules,
   isLanRulesManifestSameOrigin,
   type LanRulesManifest,
+  type LanRulesManifestStatus,
   loadLanRulesManifest,
 } from '@/helper/lanRulesManifest'
 import { toSearchRegex } from '@/helper/search'
@@ -63,9 +68,10 @@ export const lanDeviceResolver = computed(() => createLanDeviceResolver(rules.va
 
 export const lanRulesManifest = ref<LanRulesManifest>(EMPTY_LAN_RULES_MANIFEST)
 const lanRulesManifestSnapshotKey = ref('')
-export type LanRulesManifestStatus = 'checking' | 'inactive' | 'active' | 'unavailable'
 export const lanRulesManifestStatus = ref<LanRulesManifestStatus>('inactive')
-export const canUseCoreUIUpdater = computed(() => lanRulesManifestStatus.value === 'inactive')
+export const canUseCoreUIUpdater = computed(() =>
+  canUseCoreUIUpdaterForLanRulesStatus(lanRulesManifestStatus.value),
+)
 export const lanRulesDevices = computed(() =>
   getBackendScopedSnapshot(
     lanRulesManifest.value.devices,
@@ -74,22 +80,39 @@ export const lanRulesDevices = computed(() =>
   ),
 )
 
-export const waitForLanRulesManifestCheck = () => {
-  if (lanRulesManifestStatus.value !== 'checking') return Promise.resolve()
-
-  return new Promise<void>((resolve) => {
-    const stop = watch(lanRulesManifestStatus, (status) => {
-      if (status === 'checking') return
-      stop()
-      resolve()
-    })
-  })
-}
-
 const shouldFetchLanRulesManifest = () => {
   const backend = activeBackend.value
   if (!backend) return false
   return isLanRulesManifestSameOrigin(document.baseURI, getUrlFromBackend(backend))
+}
+
+const uiUpdaterCheckGuard = createGenerationGuard()
+
+export const confirmCanUseCoreUIUpdater = async () => {
+  const generation = uiUpdaterCheckGuard.next()
+  const backendKey = currentBackendKey.value
+  const hasBackend = Boolean(activeBackend.value)
+  const sameOrigin = shouldFetchLanRulesManifest()
+
+  if (!hasBackend || !sameOrigin) {
+    lanRulesManifestStatus.value = getLanRulesManifestRequestStatus(hasBackend, sameOrigin)
+    return false
+  }
+
+  // Reconfirm immediately before every destructive update; cached absence can go stale.
+  // 每次破坏性更新前都重新确认；缓存的“不存在”状态可能已经过期。
+  lanRulesManifestStatus.value = 'checking'
+  const result = await loadLanRulesManifest(new URL('lan-rules.json', document.baseURI))
+  if (!uiUpdaterCheckGuard.isCurrent(generation) || currentBackendKey.value !== backendKey) {
+    return false
+  }
+
+  const matchesCurrentRules =
+    result.status === 'loaded' &&
+    rulesSnapshotKey.value === backendKey &&
+    isLanRulesManifestForRules(result.manifest, rulesSnapshot.value)
+  lanRulesManifestStatus.value = getLanRulesManifestResultStatus(result.status, matchesCurrentRules)
+  return canUseCoreUIUpdaterForLanRulesStatus(lanRulesManifestStatus.value)
 }
 
 // Mark the check pending as soon as a backend changes, before page initialization can await.
@@ -97,7 +120,10 @@ const shouldFetchLanRulesManifest = () => {
 watch(
   currentRulesSnapshotKey,
   () => {
-    lanRulesManifestStatus.value = shouldFetchLanRulesManifest() ? 'checking' : 'inactive'
+    lanRulesManifestStatus.value = getLanRulesManifestRequestStatus(
+      Boolean(activeBackend.value),
+      shouldFetchLanRulesManifest(),
+    )
   },
   { immediate: true, flush: 'sync' },
 )
@@ -159,15 +185,27 @@ export const fetchRules = async () => {
   // 在新请求可能失败或竞态前，先丢弃上一后端的数据。
   if (rulesSnapshotKey.value !== requestSnapshotKey) clearRulesSnapshot()
 
+  const hasBackend = Boolean(activeBackend.value)
   const shouldFetchManifest = shouldFetchLanRulesManifest()
-  lanRulesManifestStatus.value = shouldFetchManifest ? 'checking' : 'inactive'
+  lanRulesManifestStatus.value = getLanRulesManifestRequestStatus(hasBackend, shouldFetchManifest)
 
   const manifestRequest = shouldFetchManifest
     ? loadLanRulesManifest(new URL('lan-rules.json', document.baseURI))
-    : Promise.resolve({ status: 'missing' } as const)
+    : Promise.resolve(
+        hasBackend ? ({ status: 'error' } as const) : ({ status: 'missing' } as const),
+      )
 
   const isCurrentRequest = () =>
     rulesRequestGuard.isCurrent(generation) && currentBackendKey.value === backendKey
+
+  // A confirmed 404 is independent of /rules, so a failed or slow rules request must not hide it.
+  // 已确认的 404 与 /rules 无关，因此规则请求失败或缓慢时也不能隐藏它。
+  if (shouldFetchManifest) {
+    void manifestRequest.then((result) => {
+      if (!isCurrentRequest() || result.status === 'loaded') return
+      lanRulesManifestStatus.value = getLanRulesManifestResultStatus(result.status)
+    })
+  }
 
   try {
     const [snapshot, manifestResult] = await Promise.all([clash.fetchRules(), manifestRequest])
@@ -188,11 +226,12 @@ export const fetchRules = async () => {
         rulesDevice.value,
         manifest.devices.map((device) => device.name),
       )
-      lanRulesManifestStatus.value = manifest.devices.length ? 'active' : 'inactive'
+      lanRulesManifestStatus.value = getLanRulesManifestResultStatus('loaded', true)
       return
     }
 
-    if (manifestResult.status !== 'missing') {
+    const resultStatus = getLanRulesManifestResultStatus(manifestResult.status)
+    if (resultStatus === 'unavailable') {
       // Existing but invalid/unreadable sidecars must block destructive core UI upgrades.
       // 已存在但无效或不可读的 sidecar 必须阻止破坏性的核心 UI 升级。
       const canKeepPrevious =
@@ -202,22 +241,24 @@ export const fetchRules = async () => {
         lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
         lanRulesManifestSnapshotKey.value = ''
       }
-      lanRulesManifestStatus.value = 'unavailable'
+      lanRulesManifestStatus.value = resultStatus
       return
     }
 
     lanRulesManifest.value = EMPTY_LAN_RULES_MANIFEST
     lanRulesManifestSnapshotKey.value = ''
-    lanRulesManifestStatus.value = 'inactive'
+    lanRulesManifestStatus.value = resultStatus
   } catch (error) {
     if (!isCurrentRequest()) return
-    lanRulesManifestStatus.value =
-      lanRulesManifestSnapshotKey.value === requestSnapshotKey &&
-      lanRulesManifest.value.devices.length
-        ? 'active'
-        : shouldFetchManifest
-          ? 'unavailable'
-          : 'inactive'
+    const hasCurrentManifest =
+      Boolean(lanRulesManifestSnapshotKey.value) &&
+      lanRulesManifestSnapshotKey.value === requestSnapshotKey
+    if (lanRulesManifestStatus.value !== 'missing') {
+      lanRulesManifestStatus.value = getLanRulesManifestFailureStatus(
+        hasCurrentManifest,
+        Boolean(activeBackend.value),
+      )
+    }
     throw error
   }
 }

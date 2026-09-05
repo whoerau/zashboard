@@ -8,6 +8,8 @@ type LanSourceRule = {
 
 export type LanDeviceResolver = (ip: string) => string | undefined
 
+const LAN_DEVICE_CACHE_SIZE = 256
+
 export const LAN_DEVICE_STORAGE_KEYS = {
   proxies: 'config/proxies-lan-device',
   rules: 'config/rules-lan-device',
@@ -40,6 +42,9 @@ export const isProxyGroupInLanDeviceScope = (name: string, device: string) =>
 export const getLanDeviceScopedProxyName = (name: string, device: string) =>
   isProxyGroupInLanDeviceScope(name, device) ? name.slice(`lan/${device}/`.length) : name
 
+export const getLanDeviceBaseProxyName = (name: string) =>
+  getLanDeviceScopedProxyName(name, getLanDeviceFromScopedProxyName(name))
+
 const extractSourceCidrsFromPayload = (payload: string) =>
   [...payload.matchAll(/SRC-IP-CIDR6?\s*,\s*([^,\s)]+)/gi)].map((match) => match[1])
 
@@ -63,13 +68,20 @@ export const createLanDeviceResolver = (rules: readonly LanSourceRule[]): LanDev
     })
   })
   const cache = new Map<string, string | undefined>()
+  const cacheResult = (ip: string, device: string | undefined) => {
+    cache.set(ip, device)
+    // Bound hits and misses because log destinations can be high-cardinality.
+    // 日志目的地址基数可能很高，因此命中与未命中缓存都必须设上限。
+    if (cache.size > LAN_DEVICE_CACHE_SIZE) {
+      const oldest = cache.keys().next().value
+      if (oldest !== undefined) cache.delete(oldest)
+    }
+    return device
+  }
 
   return (ip: string) => {
     if (cache.has(ip)) return cache.get(ip)
-    if (!ipaddr.isValid(ip)) {
-      cache.set(ip, undefined)
-      return
-    }
+    if (!ipaddr.isValid(ip)) return cacheResult(ip, undefined)
 
     const parsed = ipaddr.parse(ip)
     const address =
@@ -81,8 +93,7 @@ export const createLanDeviceResolver = (rules: readonly LanSourceRule[]): LanDev
     )
     const device = match?.device
 
-    cache.set(ip, device)
-    return device
+    return cacheResult(ip, device)
   }
 }
 

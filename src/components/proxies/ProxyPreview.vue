@@ -55,9 +55,9 @@
 <script setup lang="ts">
 import { NOT_CONNECTED, PROXY_PREVIEW_TYPE } from '@/constant'
 import { getColorForLatency } from '@/helper'
-import { getLanDeviceFromScopedProxyName, getLanDeviceScopedProxyName } from '@/helper/lanDevice'
+import { getLanDeviceScopedProxyName } from '@/helper/lanDevice'
 import { useTooltip } from '@/helper/tooltip'
-import { getLatencyByName } from '@/assembly/proxies'
+import { getLatencyByName, proxiesDevice } from '@/assembly/proxies'
 import { lowLatency, mediumLatency, proxyPreviewType } from '@/store/settings'
 import { useElementSize } from '@vueuse/core'
 import { computed, ref } from 'vue'
@@ -71,7 +71,6 @@ const props = defineProps<{
 const { showTip } = useTooltip()
 const previewRef = ref<HTMLElement | null>(null)
 const { width } = useElementSize(previewRef)
-const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.groupName ?? ''))
 
 const widthEnough = computed(() => {
   return width.value > 16 * props.nodes.length
@@ -81,7 +80,7 @@ const makeTippy = (e: Event, node: { name: string; latency: number }) => {
   const tag = document.createElement('div')
   const name = document.createElement('div')
 
-  name.textContent = getLanDeviceScopedProxyName(node.name, lanDevice.value)
+  name.textContent = getLanDeviceScopedProxyName(node.name, proxiesDevice.value)
   tag.append(name)
 
   if (node.latency !== NOT_CONNECTED) {

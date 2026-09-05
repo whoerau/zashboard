@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildConnectionHistoryView,
+  filterConnectionHistoryBySource,
   filterSourceIPHistoryEntries,
   filterVisibleSourceEntries,
   shouldRenderTopologySource,
@@ -52,4 +53,14 @@ test('filters historical source rows with the current dual-stack LAN device sele
     entries.slice(0, 2),
   )
   assert.deepEqual(filterSourceIPHistoryEntries(entries, null, resolveDevice), entries)
+})
+
+test('does not mix unscoped historical aggregates with device-filtered live data', () => {
+  const entries = [
+    { key: 'GLOBAL', count: 1 },
+    { key: 'DIRECT', count: 2 },
+  ]
+
+  assert.deepEqual(filterConnectionHistoryBySource(entries, ['192.168.50.94'], false), [])
+  assert.deepEqual(filterConnectionHistoryBySource(entries, null, false), entries)
 })

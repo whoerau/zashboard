@@ -2,7 +2,7 @@
 // 版本字符串是 core 轴(assembly/backend.ts)的唯一来源:这里探测完成后写入 core,
 // 后端切换的瞬间先重置为 'unknown',避免沿用上一个后端的结论。
 import { fetchClashVersion, restartCoreAPI, upgradeCoreAPI, upgradeUIAPI } from '@/api/clash'
-import { canUseCoreUIUpdater, waitForLanRulesManifestCheck } from '@/assembly/rules'
+import { confirmCanUseCoreUIUpdater } from '@/assembly/rules'
 import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
@@ -274,8 +274,7 @@ export const isUIUpdateAvailable = ref(false)
 export const checkUIUpdate = async () => {
   isUIUpdateAvailable.value = await fetchIsUIUpdateAvailable()
   if (isUIUpdateAvailable.value && autoUpgradeDashboard.value && can('dashboardUpgrade')) {
-    await waitForLanRulesManifestCheck()
-    if (!canUseCoreUIUpdater.value) {
+    if (!(await confirmCanUseCoreUIUpdater())) {
       console.warn('Skipped core dashboard upgrade to preserve lan-rules.json')
       return
     }

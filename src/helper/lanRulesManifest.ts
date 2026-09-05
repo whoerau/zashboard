@@ -22,6 +22,37 @@ export type LanRulesManifest = {
 export type LanRulesManifestLoadResult =
   { status: 'loaded'; manifest: LanRulesManifest } | { status: 'missing' } | { status: 'error' }
 
+export type LanRulesManifestStatus = 'checking' | 'inactive' | 'missing' | 'active' | 'unavailable'
+
+// Only a same-origin check can prove a sidecar is absent; unverifiable backends fail closed.
+// 只有同源检查才能证明 sidecar 不存在；无法验证的后端必须默认阻止更新。
+export const getLanRulesManifestRequestStatus = (
+  hasBackend: boolean,
+  sameOrigin: boolean,
+): LanRulesManifestStatus => {
+  if (!hasBackend) return 'inactive'
+  return sameOrigin ? 'checking' : 'unavailable'
+}
+
+export const getLanRulesManifestResultStatus = (
+  resultStatus: LanRulesManifestLoadResult['status'],
+  matchesRules = false,
+): LanRulesManifestStatus => {
+  if (resultStatus === 'missing') return 'missing'
+  return resultStatus === 'loaded' && matchesRules ? 'active' : 'unavailable'
+}
+
+export const canUseCoreUIUpdaterForLanRulesStatus = (status: LanRulesManifestStatus) =>
+  status === 'missing'
+
+export const getLanRulesManifestFailureStatus = (
+  hasCurrentManifest: boolean,
+  hasBackend: boolean,
+): LanRulesManifestStatus => {
+  if (hasCurrentManifest) return 'active'
+  return hasBackend ? 'unavailable' : 'inactive'
+}
+
 type ManifestSourceRule = {
   index: number
   payload?: string

@@ -29,7 +29,7 @@
         />
         <ProxyGroupNow
           :name="proxyGroup.name"
-          :lan-device="lanDevice"
+          :lan-device="proxiesDevice"
           :mobile="true"
         />
       </div>
@@ -60,8 +60,8 @@
 <script setup lang="ts">
 import { KEYBOARD_SHORTCUT_ACTION, useKeyboardShortcuts } from '@/composables/keyboard'
 import { isHiddenGroup } from '@/helper'
-import { getLanDeviceFromScopedProxyName, getLanDeviceScopedProxyName } from '@/helper/lanDevice'
-import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
+import { getLanDeviceScopedProxyName } from '@/helper/lanDevice'
+import { hiddenGroupMap, proxiesDevice, proxyMap } from '@/assembly/proxies'
 import { useTooltip } from '@/helper/tooltip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { getConnectionChains } from '@/helper'
@@ -91,8 +91,7 @@ const { t } = useI18n()
 const { getShortcutKey } = useKeyboardShortcuts()
 const { showTip } = useTooltip()
 const proxyGroup = computed(() => proxyMap.value[props.name])
-const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.name))
-const displayName = computed(() => getLanDeviceScopedProxyName(props.name, lanDevice.value))
+const displayName = computed(() => getLanDeviceScopedProxyName(props.name, proxiesDevice.value))
 
 const downloadTotal = computed(() => {
   return activeConnections.value

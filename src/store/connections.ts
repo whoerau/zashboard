@@ -26,6 +26,7 @@ import {
 import { toSearchRegex } from '@/helper/search'
 import { createSourceIPFilterMatcher } from '@/helper/sourceIPFilter'
 import { useStorage } from '@/helper/storage'
+import { getUrlFromBackend } from '@/helper/utils'
 import type { Connection } from '@/types'
 import { watchOnce } from '@vueuse/core'
 import dayjs from 'dayjs'
@@ -71,9 +72,12 @@ export const connectionFilter = ref('')
 export const sourceIPFilter = ref<string[] | null>(null)
 
 watch(
-  () => activeBackend.value?.uuid,
-  (backendID, previousBackendID) => {
-    if (backendID !== previousBackendID) sourceIPFilter.value = null
+  () => {
+    const backend = activeBackend.value
+    return backend ? `${backend.uuid}:${getUrlFromBackend(backend)}` : ''
+  },
+  (backendKey, previousBackendKey) => {
+    if (backendKey !== previousBackendKey) sourceIPFilter.value = null
   },
 )
 

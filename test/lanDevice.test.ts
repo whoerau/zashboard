@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   createLanDeviceResolver,
+  getLanDeviceBaseProxyName,
   getLanDeviceDisplayName,
   getLanDeviceFromScopedProxyName,
   getLanDeviceName,
@@ -109,6 +111,8 @@ test('formats scoped LAN proxy names only for the matching device', () => {
     'lan/iphone14pm/GLOBAL',
   )
   assert.match(getLanDeviceScopedProxyName('lan/iphone14pm/GLOBAL', 'iphone14pm'), /^GLOBAL$/)
+  assert.equal(getLanDeviceBaseProxyName('lan/iphone14pm/GLOBAL'), 'GLOBAL')
+  assert.equal(getLanDeviceBaseProxyName('GLOBAL'), 'GLOBAL')
 })
 
 test('preserves the Rules device while manifest state is unavailable', () => {
@@ -136,6 +140,13 @@ test('compiled LAN resolver does not rescan rules for repeated IP lookups', () =
   assert.equal(resolve('192.168.50.94'), 'oneplus8')
   assert.equal(resolve('192.168.50.94'), 'oneplus8')
   assert.equal(proxyReads, readsAfterCompile)
+})
+
+test('bounds LAN resolver cache for high-cardinality log endpoints', () => {
+  const source = readFileSync(new URL('../src/helper/lanDevice.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /cache\.size > LAN_DEVICE_CACHE_SIZE/)
+  assert.match(source, /cache\.delete\(oldest\)/)
 })
 
 test('adds LAN device names to IPv4 and bracketed IPv6 log endpoints', () => {

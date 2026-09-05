@@ -2,7 +2,7 @@
   <div class="relative flex w-full items-center gap-2.5 overflow-hidden">
     <ProxyName
       :name="name"
-      :lan-device="lanDevice"
+      :lan-device="proxiesDevice"
       :icon-size="proxyGroupIconSize"
       :icon-margin="proxyGroupIconMargin"
       class="text-base-content"
@@ -32,7 +32,7 @@
     <div class="flex flex-1 items-center gap-2 truncate text-sm">
       <ProxyGroupNow
         :name="name"
-        :lan-device="lanDevice"
+        :lan-device="proxiesDevice"
       />
     </div>
     <div class="text-base-content/40 min-w-12 shrink-0 text-right text-xs tabular-nums">
@@ -44,12 +44,11 @@
 <script setup lang="ts">
 import { KEYBOARD_SHORTCUT_ACTION, useKeyboardShortcuts } from '@/composables/keyboard'
 import { isHiddenGroup } from '@/helper'
-import { getLanDeviceFromScopedProxyName } from '@/helper/lanDevice'
 import { checkTruncation, useTooltip } from '@/helper/tooltip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { getConnectionChains } from '@/helper'
 import { activeConnections } from '@/store/connections'
-import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
+import { hiddenGroupMap, proxiesDevice, proxyMap } from '@/assembly/proxies'
 import { manageHiddenGroup, proxyGroupIconMargin, proxyGroupIconSize } from '@/store/settings'
 import { twMerge } from 'tailwind-merge'
 import { computed } from 'vue'
@@ -74,7 +73,6 @@ const { t } = useI18n()
 const { getShortcutKey } = useKeyboardShortcuts()
 const { showTip } = useTooltip()
 const proxyGroup = computed(() => proxyMap.value[props.name])
-const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.name))
 
 const downloadTotal = computed(() => {
   return activeConnections.value

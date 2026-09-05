@@ -191,7 +191,7 @@ import { showNotification } from '@/helper/notification'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { useStorage } from '@/helper/storage'
 import { useTooltip } from '@/helper/tooltip'
-import { buildConnectionHistoryView, filterSourceIPHistoryEntries } from '@/helper/topology'
+import { buildConnectionHistoryView, filterConnectionHistoryBySource } from '@/helper/topology'
 import { prettyBytesHelper } from '@/helper/utils'
 import {
   aggregateConnections,
@@ -245,16 +245,16 @@ const aggregationType = useStorage<ConnectionHistoryType>(
 )
 const historicalData = computed(() => {
   const entries = aggregatedDataMap.value[aggregationType.value]
-  if (
-    !topologyApplyConnectionFilter.value ||
-    aggregationType.value !== ConnectionHistoryType.SourceIP
-  ) {
-    return entries
-  }
+  if (!topologyApplyConnectionFilter.value) return entries
 
   // Historical source rows can honor source/device identity even though other live fields are gone.
   // 历史来源行虽已失去其他实时字段，仍可按来源及设备身份筛选。
-  return filterSourceIPHistoryEntries(entries, sourceIPFilter.value, lanDeviceResolver.value)
+  return filterConnectionHistoryBySource(
+    entries,
+    sourceIPFilter.value,
+    aggregationType.value === ConnectionHistoryType.SourceIP,
+    lanDeviceResolver.value,
+  )
 })
 const connectionHistoryView = computed(() => {
   const currentData = aggregateConnections(overviewActiveConnections.value, aggregationType.value)

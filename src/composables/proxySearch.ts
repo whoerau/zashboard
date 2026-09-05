@@ -30,8 +30,11 @@ export const matchProxySearchKeyword = (name: string, keyword = proxySearchKeywo
   return toSearchRegex(normalizedKeyword)?.test(name) ?? true
 }
 
-export const matchLanDeviceProxySearchKeyword = (name: string, lanDevice: string) =>
-  matchProxySearchKeyword(getLanDeviceScopedProxyName(name, lanDevice))
+export const matchLanDeviceProxySearchKeyword = (
+  name: string,
+  lanDevice: string,
+  keyword = proxySearchKeyword.value,
+) => matchProxySearchKeyword(getLanDeviceScopedProxyName(name, lanDevice), keyword)
 
 export const proxyGroupContainsMatchingNode = (groupName: string, lanDevice = '') => {
   return (

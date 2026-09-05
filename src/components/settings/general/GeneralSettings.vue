@@ -198,7 +198,11 @@
 
 <script setup lang="ts">
 import { can, showDisplayAllFeatures } from '@/assembly/backend'
-import { canUseCoreUIUpdater, lanRulesManifestStatus } from '@/assembly/rules'
+import {
+  canUseCoreUIUpdater,
+  confirmCanUseCoreUIUpdater,
+  lanRulesManifestStatus,
+} from '@/assembly/rules'
 import { upgradeUIAPI } from '@/assembly/version'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
 import SelectInput from '@/components/common/SelectInput.vue'
@@ -287,8 +291,12 @@ const dashboardUpgradeDisabledTip = computed(() => {
   return t('dashboardUpgradeManagedLanRules')
 })
 const handlerClickUpgradeUI = async () => {
-  if (isUIUpgrading.value || !canUseCoreUIUpdater.value) return
+  if (isUIUpgrading.value) return
   isUIUpgrading.value = true
+  if (!(await confirmCanUseCoreUIUpdater())) {
+    isUIUpgrading.value = false
+    return
+  }
   // 升级请求可能跑好一会儿,按钮只是轻轻闪一下 —— 先弹一条「执行中」,结果出来再顶掉。
   const notifyKey = notifyActionPending('upgradeDashboard')
   try {

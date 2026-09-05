@@ -6,24 +6,26 @@ on:
       - feat/lan-device-filter
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  release:
+  build:
     if: github.repository == 'whoerau/zashboard'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
       - name: Build
         run: |
@@ -37,18 +39,44 @@ jobs:
           cd dist
           zip -qr ../dist.zip .
 
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: lan-device-dist-${{ github.sha }}
+          path: dist.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs: build
+    if: github.repository == 'whoerau/zashboard'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: lan-device-dist-${{ github.sha }}
+
       - name: Publish rolling release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: lan-device-filter-${{ github.sha }}
         run: |
-          git fetch origin "+refs/heads/$GITHUB_REF_NAME:refs/remotes/origin/$GITHUB_REF_NAME"
-          if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
+          current_head_sha() {
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$GITHUB_REF_NAME" --jq .object.sha
+          }
+
+          if [ "$GITHUB_SHA" != "$(current_head_sha)" ]; then
             echo "A newer branch commit exists; skipping this stale release."
             exit 0
           fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" != "true" ]; then
+              echo "Release is already published and immutable; leaving it unchanged."
+              exit 0
+            fi
             gh release upload "$RELEASE_TAG" dist.zip --clobber
             gh release edit "$RELEASE_TAG" --title "lan-device-filter $GITHUB_SHA" --notes "Built from $GITHUB_SHA"
           else
@@ -60,8 +88,7 @@ jobs:
           gh release download "$RELEASE_TAG" --pattern dist.zip --output "$RUNNER_TEMP/published-dist.zip" --clobber
           cmp --silent dist.zip "$RUNNER_TEMP/published-dist.zip"
 
-          git fetch origin "+refs/heads/$GITHUB_REF_NAME:refs/remotes/origin/$GITHUB_REF_NAME"
-          if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
+          if [ "$GITHUB_SHA" != "$(current_head_sha)" ]; then
             echo "A newer branch commit exists; leaving this release unpromoted."
             exit 0
           fi

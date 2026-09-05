@@ -52,11 +52,16 @@
 
 <script setup lang="ts">
 import { PROXY_CARD_SIZE, PROXY_SORT_TYPE } from '@/constant'
-import { getLanDeviceFromScopedProxyName, getLanDeviceScopedProxyName } from '@/helper/lanDevice'
+import { getLanDeviceScopedProxyName } from '@/helper/lanDevice'
 import { checkTruncation } from '@/helper/tooltip'
 import { scrollIntoCenter } from '@/helper/utils'
-import { proxyLatencyTest } from '@/assembly/proxies'
-import { getIPv6ByName, getTestUrl, proxyMap } from '@/assembly/proxies'
+import {
+  getIPv6ByName,
+  getTestUrl,
+  proxiesDevice,
+  proxyLatencyTest,
+  proxyMap,
+} from '@/assembly/proxies'
 import { IPv6test, proxyCardSize, proxySortType, truncateProxyName } from '@/store/settings'
 import { smartWeightsMap } from '@/store/smart'
 import { twMerge } from 'tailwind-merge'
@@ -74,8 +79,9 @@ const props = defineProps<{
 
 const cardRef = ref()
 const node = computed(() => proxyMap.value[props.name])
-const lanDevice = computed(() => getLanDeviceFromScopedProxyName(props.groupName ?? ''))
-const displayName = computed(() => getLanDeviceScopedProxyName(node.value.name, lanDevice.value))
+const displayName = computed(() =>
+  getLanDeviceScopedProxyName(node.value.name, proxiesDevice.value),
+)
 const isLatencyTesting = ref(false)
 const typeFormatter = (type: string) => {
   type = type.toLowerCase()

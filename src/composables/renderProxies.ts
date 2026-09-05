@@ -1,4 +1,4 @@
-import { getLatencyByName, proxyMap, proxyProviederList } from '@/assembly/proxies'
+import { getLatencyByName, proxiesDevice, proxyMap, proxyProviederList } from '@/assembly/proxies'
 import { NOT_CONNECTED, PROXY_SORT_TYPE } from '@/constant'
 import { isProxyGroup } from '@/helper'
 import {
@@ -9,7 +9,11 @@ import {
 } from '@/store/settings'
 import { smartOrderMap } from '@/store/smart'
 import { computed, type ComputedRef } from 'vue'
-import { isProxyNodeSearchMode, matchProxySearchKeyword, proxySearchKeyword } from './proxySearch'
+import {
+  isProxyNodeSearchMode,
+  matchLanDeviceProxySearchKeyword,
+  proxySearchKeyword,
+} from './proxySearch'
 
 type LatencyMap = Map<string, number>
 
@@ -83,12 +87,16 @@ const filterProxies = (
 
   if (isProxyNodeSearchMode.value && proxySearchKeyword.value) {
     const keyword = proxySearchKeyword.value
-    result = result.filter((name) => matchProxySearchKeyword(name, keyword))
+    result = result.filter((name) =>
+      matchLanDeviceProxySearchKeyword(name, proxiesDevice.value, keyword),
+    )
   }
 
   const groupKeyword = groupName ? proxyGroupFilterMap.value[groupName] : ''
   if (groupKeyword) {
-    result = result.filter((name) => matchProxySearchKeyword(name, groupKeyword))
+    result = result.filter((name) =>
+      matchLanDeviceProxySearchKeyword(name, proxiesDevice.value, groupKeyword),
+    )
   }
 
   return result
